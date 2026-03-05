@@ -51,6 +51,12 @@ if ($current_lang == 'ar') {
     $lang['not_specified'] = "غير محدد";
     $lang['total_count'] = "العدد الإجمالي";
 
+    // جدول التقارير والإحصائيات
+    $lang['reports'] = "التقارير والإحصائيات";
+    $lang['finance'] = "الإدارة المالية";
+    $lang['roles'] = "الصلاحيات والإدارة";
+
+
     // SweetAlert Translations
     $lang['swal_title'] = "هل أنت متأكد؟";
     $lang['swal_text'] = "لن تتمكن من التراجع عن هذا الإجراء!";
@@ -102,6 +108,11 @@ if ($current_lang == 'ar') {
     $lang['dob'] = "DOB";
     $lang['not_specified'] = "Not specified";
     $lang['total_count'] = "Total Count";
+
+    // Reports & Analytics
+    $lang['reports'] = "Reports & Analytics";
+    $lang['finance'] = "Finance & Billing";
+    $lang['roles'] = "Roles & Permissions";
 
     // SweetAlert Translations
     $lang['swal_title'] = "Are you sure?";
