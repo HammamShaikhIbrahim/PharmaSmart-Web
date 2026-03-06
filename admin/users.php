@@ -13,7 +13,22 @@ if (isset($_GET['delete_id'])) {
     header("Location: users.php?msg=deleted");
 }
 
-$query = "SELECT u.*, p.Address, p.DOB FROM User u LEFT JOIN Patient p ON u.UserID = p.PatientID WHERE u.RoleID = 3 ORDER BY u.CreatedAt DESC";
+$query = "SELECT u.*, p.Address, 
+          TIMESTAMPDIFF(YEAR, p.DOB, CURDATE()) AS Age 
+          FROM User u 
+          LEFT JOIN Patient p ON u.UserID = p.PatientID 
+          WHERE u.RoleID = 3 
+          ORDER BY u.CreatedAt DESC";
+$result = mysqli_query($conn, $query);
+
+// 💡 إضافة كود البحث المخصص:
+$search = mysqli_real_escape_string($conn, $_GET['search'] ?? '');
+$query = "SELECT u.*, p.Address, 
+          TIMESTAMPDIFF(YEAR, p.DOB, CURDATE()) AS Age 
+          FROM User u 
+          LEFT JOIN Patient p ON u.UserID = p.PatientID 
+          WHERE u.RoleID = 3 AND (u.Fname LIKE '%$search%' OR u.Lname LIKE '%$search%')
+          ORDER BY u.CreatedAt DESC";
 $result = mysqli_query($conn, $query);
 
 include('../includes/header.php');
@@ -24,14 +39,20 @@ include('../includes/sidebar.php');
 
 
 
-    <!-- الترويسة -->
-    <div class="mb-8 flex justify-between items-center">
+    <!-- الترويسة مع شريط البحث -->
+    <div class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 class="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
             <i data-lucide="users" class="text-blue-500"></i> <?php echo $lang['patients']; ?>
         </h1>
-        <div class="bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-gray-300 px-4 py-2 rounded-xl shadow-sm border text-sm font-bold transition-colors">
-            <?php echo $lang['total_count']; ?>: <span class="text-blue-600 dark:text-blue-400"><?php echo mysqli_num_rows($result); ?></span>
-        </div>
+
+        <!-- فورم البحث الخاص بالصيدليات فقط -->
+        <form method="GET" class="w-full md:w-96">
+            <div class="relative">
+                <input type="text" name="search" placeholder="ابحث عن مريض..." value="<?php echo htmlspecialchars($search); ?>"
+                    class="w-full p-3 rounded-2xl border dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <i data-lucide="search" class="absolute left-3 top-3.5 text-gray-400"></i>
+            </div>
+        </form>
     </div>
 
     <!-- الجدول -->
@@ -56,7 +77,10 @@ include('../includes/sidebar.php');
                             <td class="p-6">
                                 <div class="font-bold text-gray-800 dark:text-white"><?php echo htmlspecialchars($row['Fname'] . ' ' . $row['Lname']); ?></div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    <?php echo $lang['dob']; ?>: <span dir="ltr"><?php echo $row['DOB'] ? $row['DOB'] : '-'; ?></span>
+                                    <?php echo $lang['age']; ?>:
+                                    <span class="font-bold text-emerald-600 dark:text-emerald-400">
+                                        <?php echo ($row['Age'] !== null) ? $row['Age'] . ' ' . $lang['years'] : '-'; ?>
+                                    </span>
                                 </div>
                             </td>
 
@@ -122,6 +146,7 @@ include('../includes/sidebar.php');
             }
         });
     }
+
     lucide.createIcons();
 </script>
 

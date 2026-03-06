@@ -58,20 +58,7 @@ $hover_color = ($role_id == 1) ? 'hover:bg-blue-600' : 'hover:bg-emerald-600';
                 <i data-lucide="users"></i> <span><?php echo $lang['patients']; ?></span>
             </a>
 
-            <!-- 💡 الأقسام الجديدة (التقارير، المالية، الصلاحيات) -->
-            <div class="my-3 border-t border-gray-700/50"></div> <!-- فاصل -->
 
-            <a href="#" class="flex items-center gap-3 p-3 rounded-xl transition duration-200 <?php echo $hover_color; ?> text-gray-300 hover:text-white">
-                <i data-lucide="bar-chart-3"></i> <span><?php echo $lang['reports']; ?></span>
-            </a>
-
-            <a href="#" class="flex items-center gap-3 p-3 rounded-xl transition duration-200 <?php echo $hover_color; ?> text-gray-300 hover:text-white">
-                <i data-lucide="wallet"></i> <span><?php echo $lang['finance']; ?></span>
-            </a>
-
-            <a href="#" class="flex items-center gap-3 p-3 rounded-xl transition duration-200 <?php echo $hover_color; ?> text-gray-300 hover:text-white">
-                <i data-lucide="shield-check"></i> <span><?php echo $lang['roles']; ?></span>
-            </a>
 
             <!-- ========================================== -->
             <!-- 2. روابط الصيدلي (Pharmacist Links) -->

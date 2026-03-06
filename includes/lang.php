@@ -39,6 +39,7 @@ if ($current_lang == 'ar') {
     // جدول الصيدليات
     $lang['pharmacy_name'] = "الصيدلية";
     $lang['owner'] = "المالك";
+    $lang['phone'] = "الهاتف";
     $lang['location_work'] = "الموقع / العمل";
     $lang['join_date'] = "تاريخ الانضمام";
     $lang['active'] = "نشط";
@@ -47,7 +48,8 @@ if ($current_lang == 'ar') {
     // جدول المرضى
     $lang['patient_name'] = "المريض";
     $lang['contact_info'] = "بيانات الاتصال";
-    $lang['dob'] = "تاريخ الميلاد";
+    $lang['age'] = "العمر";
+    $lang['years'] = "سنة";
     $lang['not_specified'] = "غير محدد";
     $lang['total_count'] = "العدد الإجمالي";
 
@@ -55,7 +57,11 @@ if ($current_lang == 'ar') {
     $lang['reports'] = "التقارير والإحصائيات";
     $lang['finance'] = "الإدارة المالية";
     $lang['roles'] = "الصلاحيات والإدارة";
-
+    $lang['reports_analytics'] = "التقارير والإحصائيات";
+    $lang['orders'] = " الطلبات";
+    $lang['orders_last_week'] = "حركة الطلبات (آخر 7 أيام)";
+    $lang['top_medicines'] = "الأدوية الأكثر طلباً";
+    $lang['no_data'] = "لا يوجد بيانات لعرضها";
 
     // SweetAlert Translations
     $lang['swal_title'] = "هل أنت متأكد؟";
@@ -65,6 +71,15 @@ if ($current_lang == 'ar') {
     $lang['suspend_title'] = "تعليق الحساب؟";
     $lang['suspend_text'] = "سيتم إيقاف الصيدلية مؤقتاً عن العمل.";
     $lang['suspend_confirm'] = "نعم، علق الحساب";
+
+    // Topbar
+    $lang['search_placeholder'] = "بحث عن صيدلية، مريض، طلب...";
+    $lang['notifications'] = "الإشعارات";
+    $lang['no_notifications'] = "لا توجد إشعارات جديدة";
+    $lang['view_all'] = "عرض الكل";
+    $lang['profile'] = "الملف الشخصي";
+    $lang['settings'] = "الإعدادات";
+    $lang['new_pharmacy_req'] = "طلب انضمام صيدلية جديد";
 } else {
     // General
     $lang['dashboard'] = "Dashboard";
@@ -97,6 +112,7 @@ if ($current_lang == 'ar') {
     // Pharmacies Table
     $lang['pharmacy_name'] = "Pharmacy";
     $lang['owner'] = "Owner";
+    $lang['phone'] = "Phone";
     $lang['location_work'] = "Location / Hours";
     $lang['join_date'] = "Join Date";
     $lang['active'] = "Active";
@@ -105,7 +121,8 @@ if ($current_lang == 'ar') {
     // Patients Table
     $lang['patient_name'] = "Patient";
     $lang['contact_info'] = "Contact Info";
-    $lang['dob'] = "DOB";
+    $lang['age'] = "Age";
+    $lang['years'] = "years";
     $lang['not_specified'] = "Not specified";
     $lang['total_count'] = "Total Count";
 
@@ -113,6 +130,11 @@ if ($current_lang == 'ar') {
     $lang['reports'] = "Reports & Analytics";
     $lang['finance'] = "Finance & Billing";
     $lang['roles'] = "Roles & Permissions";
+    $lang['reports_analytics'] = "Reports & Analytics";
+    $lang['orders'] = "Orders";
+    $lang['orders_last_week'] = "Orders Trend (Last 7 Days)";
+    $lang['top_medicines'] = "Top Medicines";
+    $lang['no_data'] = "No data available";
 
     // SweetAlert Translations
     $lang['swal_title'] = "Are you sure?";
@@ -122,4 +144,13 @@ if ($current_lang == 'ar') {
     $lang['suspend_title'] = "Suspend Account?";
     $lang['suspend_text'] = "Pharmacy will be temporarily paused.";
     $lang['suspend_confirm'] = "Yes, Suspend";
+
+    // Topbar
+    $lang['search_placeholder'] = "Search pharmacy, patient, order...";
+    $lang['notifications'] = "Notifications";
+    $lang['no_notifications'] = "No new notifications";
+    $lang['view_all'] = "View All";
+    $lang['profile'] = "My Profile";
+    $lang['settings'] = "Settings";
+    $lang['new_pharmacy_req'] = "New Pharmacy Request";
 }

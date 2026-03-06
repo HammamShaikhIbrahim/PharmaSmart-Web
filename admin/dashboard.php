@@ -12,9 +12,10 @@ $pendingPharma = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 $patientsCount = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM User WHERE RoleID=3"))['c'];
 $ordersCount = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM `Order`"))['c'];
 
-$query = "SELECT u.Fname, u.Lname, u.Phone, p.PharmacyName, p.Location, p.WorkingHours, p.LicenseNumber, p.Latitude, p.Longitude 
+// 💡 تعديل الاستعلام: أزلنا شرط IsApproved=1 لنجلب كل الصيدليات (ليتم فلترتها لاحقاً بالجافاسكربت)
+$query = "SELECT u.Fname, u.Lname, u.Phone, p.PharmacyName, p.Location, p.WorkingHours, p.LicenseNumber, p.Latitude, p.Longitude, p.IsApproved 
           FROM Pharmacist p JOIN User u ON p.PharmacistID = u.UserID 
-          WHERE p.IsApproved=1 AND p.Latitude IS NOT NULL";
+          WHERE p.Latitude IS NOT NULL";
 $result = mysqli_query($conn, $query);
 $pharmacies = [];
 while ($row = mysqli_fetch_assoc($result)) {
@@ -24,13 +25,12 @@ while ($row = mysqli_fetch_assoc($result)) {
 include('../includes/header.php');
 include('../includes/sidebar.php');
 
-// 💡 منطق تحديد الاتجاهات (التعديل الجديد)
 if ($dir == 'rtl') {
-    $panel_pos = 'right-4';      // اللوحة يمين
-    $zoom_pos = 'bottomleft';    // الزووم يسار
+    $panel_pos = 'right-4';
+    $zoom_pos = 'bottomleft';
 } else {
-    $panel_pos = 'left-4';       // اللوحة يسار
-    $zoom_pos = 'bottomright';   // الزووم يمين
+    $panel_pos = 'left-4';
+    $zoom_pos = 'bottomright';
 }
 ?>
 
@@ -49,7 +49,6 @@ if ($dir == 'rtl') {
     </div>
 
     <!-- الكروت الإحصائية -->
-    <!-- الكروت الإحصائية مع تأثيرات Hover للوضع النهاري والليلي -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
 
         <!-- 1. الصيدليات العاملة -->
@@ -108,30 +107,28 @@ if ($dir == 'rtl') {
         </div>
     </div>
 
-   <!-- قسم الخريطة -->
+    <!-- قسم الخريطة -->
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
         
-        <!-- الترويسة المعدلة (تم عكس الترتيب) -->
-        <div class="flex justify-between items-center mb-6">
+        <!-- الترويسة وأزرار الفلترة -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             
-            <!-- 1. العنوان أصبح هنا (في البداية) -->
             <h2 class="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
                 <i data-lucide="map" class="text-blue-500"></i> <?php echo $lang['map_title']; ?>
             </h2>
 
-            <!-- 2. زر Live أصبح هنا (في النهاية) -->
-            <span class="bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-gray-300 text-xs px-3 py-1 rounded-md font-bold">
-                <?php echo $lang['live_update']; ?>
-            </span>
+            <!-- 💡 أزرار فلترة الخريطة -->
+            <div class="flex bg-gray-100 dark:bg-slate-900 p-1 rounded-xl">
+                <button onclick="filterMap('all', this)" class="filter-btn active-filter px-4 py-1.5 rounded-lg text-sm font-bold text-gray-600 dark:text-gray-400 transition">الكل</button>
+                <button onclick="filterMap('active', this)" class="filter-btn px-4 py-1.5 rounded-lg text-sm font-bold text-emerald-600 transition">النشطة</button>
+                <button onclick="filterMap('pending', this)" class="filter-btn px-4 py-1.5 rounded-lg text-sm font-bold text-amber-500 transition">المعلقة</button>
+            </div>
             
         </div>
 
         <div class="relative w-full h-[550px] rounded-2xl overflow-hidden border-2 border-gray-100 dark:border-slate-700 shadow-inner bg-gray-100 dark:bg-slate-600">
             <div id="map" class="absolute inset-0 z-0"></div>
-            
-            <!-- ... باقي كود الخريطة واللوحة العائمة ... -->
 
-            <!-- اللوحة العائمة (مكانها يتغير حسب المتغير $panel_pos) -->
             <div class="absolute top-4 <?php echo $panel_pos; ?> bottom-4 w-80 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-600 z-[1000] flex flex-col transition-all duration-300">
                 <div class="bg-gray-50 dark:bg-slate-700 p-4 border-b border-gray-200 dark:border-slate-600 rounded-t-2xl text-center">
                     <h3 class="text-xl font-black text-gray-800 dark:text-white"><?php echo $lang['pharma_info']; ?></h3>
@@ -145,24 +142,23 @@ if ($dir == 'rtl') {
     </div>
 </main>
 
-<script>
-    var map = L.map('map', {
-        zoomControl: false
-    }).setView([31.90, 35.20], 8);
+<style>
+    /* تنسيق الزر النشط في الفلتر */
+    .active-filter { background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #1f2937 !important; }
+    .dark .active-filter { background-color: #334155; color: white !important; }
+</style>
 
-    // 💡 وضع أزرار الزووم في المكان الصحيح (ديناميكياً)
-    L.control.zoom({
-        position: '<?php echo $zoom_pos; ?>'
-    }).addTo(map);
+<script>
+    var map = L.map('map', { zoomControl: false }).setView([31.90, 35.20], 8);
+    L.control.zoom({ position: '<?php echo $zoom_pos; ?>' }).addTo(map);
 
     var tileUrl = document.documentElement.classList.contains('dark') ?
         'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' :
         'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
 
-    L.tileLayer(tileUrl, {
-        maxZoom: 19
-    }).addTo(map);
-
+    // 💡 مجموعة (LayerGroup) للتحكم بمسح وإضافة الدبابيس
+    var markersLayer = L.layerGroup().addTo(map);
     var pharmaciesData = <?php echo json_encode($pharmacies); ?>;
 
     var langJS = {
@@ -176,39 +172,38 @@ if ($dir == 'rtl') {
 
     function updatePharmacyInfo(pharma) {
         const detailsContainer = document.getElementById('pharmacy-details');
+        
+        // تغيير لون الترويسة في اللوحة الجانبية بناءً على الحالة (أخضر=نشط، أصفر=معلق)
+        let headerBg = pharma.IsApproved == 1 ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100' : 'bg-amber-50 dark:bg-amber-900/30 border-amber-100';
+        let headerText = pharma.IsApproved == 1 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400';
 
         detailsContainer.innerHTML = `
             <div class="w-full flex flex-col pt-4 h-full">
-                <div class="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 py-3 px-4 rounded-xl mb-6 text-center border border-blue-100 dark:border-blue-800">
+                <div class="${headerBg} ${headerText} py-3 px-4 rounded-xl mb-6 text-center border dark:border-slate-700">
                     <h2 class="text-xl font-bold">${pharma.PharmacyName}</h2>
                 </div>
                 
                 <div class="space-y-6 text-sm px-4 py-6 border-2 border-gray-100 dark:border-slate-600 rounded-2xl bg-white dark:bg-slate-700 shadow-sm flex-1">
-                    
                     <div class="flex items-center gap-3">
                         <i data-lucide="user" class="text-gray-400 w-5 h-5"></i>
                         <span class="font-bold text-gray-500 dark:text-gray-400 min-w-[80px]">${langJS.pharmacist}:</span>
                         <span class="font-bold text-gray-900 dark:text-white">${pharma.Fname} ${pharma.Lname}</span>
                     </div>
-                    
                     <div class="flex items-start gap-3">
                         <i data-lucide="map-pin" class="text-gray-400 w-5 h-5 mt-0.5"></i>
                         <span class="font-bold text-gray-500 dark:text-gray-400 min-w-[80px]">${langJS.address}:</span>
                         <span class="font-bold text-gray-900 dark:text-white leading-relaxed">${pharma.Location}</span>
                     </div>
-                    
                     <div class="flex items-center gap-3">
                         <i data-lucide="clock" class="text-gray-400 w-5 h-5"></i>
                         <span class="font-bold text-gray-500 dark:text-gray-400 min-w-[80px]">${langJS.hours}:</span>
                         <span class="font-bold text-gray-900 dark:text-white">${pharma.WorkingHours}</span>
                     </div>
-                    
                     <div class="flex items-center gap-3">
                         <i data-lucide="phone" class="text-gray-400 w-5 h-5"></i>
                         <span class="font-bold text-gray-500 dark:text-gray-400 min-w-[80px]">${langJS.phone}:</span>
                         <span class="font-bold text-gray-900 dark:text-white" dir="ltr">${pharma.Phone || langJS.na}</span>
                     </div>
-
                     <div class="flex items-center gap-3">
                         <i data-lucide="file-text" class="text-gray-400 w-5 h-5"></i>
                         <span class="font-bold text-gray-500 dark:text-gray-400 min-w-[80px]">${langJS.license}:</span>
@@ -220,28 +215,49 @@ if ($dir == 'rtl') {
         lucide.createIcons();
     }
 
-    if (pharmaciesData.length > 0) {
+    // 💡 دالة رسم النقاط وفلترتها
+    function drawMarkers(filter) {
+        markersLayer.clearLayers(); // مسح الخريطة
+
         pharmaciesData.forEach(function(p) {
+            // تجاهل النقطة إذا لم تطابق الفلتر المختار
+            if (filter === 'active' && p.IsApproved != 1) return;
+            if (filter === 'pending' && p.IsApproved != 0) return;
+
             if (p.Latitude && p.Longitude) {
+                // تحديد لون النقطة (أخضر للنشط، برتقالي للمعلق)
+                let markerColor = p.IsApproved == 1 ? "#10b981" : "#f59e0b";
+
                 var marker = L.circleMarker([p.Latitude, p.Longitude], {
                     radius: 8,
-                    fillColor: "#ef4444",
+                    fillColor: markerColor,
                     color: "#ffffff",
                     weight: 2,
                     opacity: 1,
                     fillOpacity: 1
-                }).addTo(map);
+                }).addTo(markersLayer);
 
                 marker.on('click', function() {
                     updatePharmacyInfo(p);
-                    map.flyTo([p.Latitude, p.Longitude], 12, {
-                        animate: true,
-                        duration: 1.5
-                    });
+                    map.flyTo([p.Latitude, p.Longitude], 12, { animate: true, duration: 1.5 });
                 });
             }
         });
     }
+
+    // 💡 دالة يتم استدعاؤها عند الضغط على أزرار الفلترة
+    window.filterMap = function(type, btnElement) {
+        // إزالة كلاس النشط من كل الأزرار
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active-filter'));
+        // إضافة كلاس النشط للزر الذي تم الضغط عليه
+        btnElement.classList.add('active-filter');
+        
+        // إعادة رسم الخريطة
+        drawMarkers(type);
+    }
+
+    // رسم الخريطة الأساسية عند التحميل
+    drawMarkers('all');
     lucide.createIcons();
 </script>
 <?php include('../includes/footer.php'); ?>

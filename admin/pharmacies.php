@@ -7,20 +7,23 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role_id'] != 1) {
     exit();
 }
 
+// معالجة الأكشن (قبول/رفض/حذف/تعليق)
 if (isset($_GET['action']) && isset($_GET['id'])) {
     $id = intval($_GET['id']);
-    if ($_GET['action'] == 'approve') {
-        mysqli_query($conn, "UPDATE Pharmacist SET IsApproved = 1 WHERE PharmacistID = $id");
-    } elseif ($_GET['action'] == 'suspend') {
-        mysqli_query($conn, "UPDATE Pharmacist SET IsApproved = 0 WHERE PharmacistID = $id");
-    } elseif ($_GET['action'] == 'delete' || $_GET['action'] == 'reject') {
-        mysqli_query($conn, "DELETE FROM User WHERE UserID = $id");
-    }
+    if ($_GET['action'] == 'approve') mysqli_query($conn, "UPDATE Pharmacist SET IsApproved = 1 WHERE PharmacistID = $id");
+    elseif ($_GET['action'] == 'suspend') mysqli_query($conn, "UPDATE Pharmacist SET IsApproved = 0 WHERE PharmacistID = $id");
+    elseif ($_GET['action'] == 'delete' || $_GET['action'] == 'reject') mysqli_query($conn, "DELETE FROM User WHERE UserID = $id");
     header("Location: pharmacies.php");
     exit();
 }
 
-$query = "SELECT u.UserID, u.Fname, u.Lname, u.CreatedAt, p.* FROM User u JOIN Pharmacist p ON u.UserID = p.PharmacistID ORDER BY p.IsApproved ASC";
+// 💡 إضافة كود البحث المخصص:
+$search = mysqli_real_escape_string($conn, $_GET['search'] ?? '');
+$query = "SELECT u.UserID, u.Fname, u.Lname, u.Phone, u.CreatedAt, p.* 
+          FROM User u 
+          JOIN Pharmacist p ON u.UserID = p.PharmacistID 
+          WHERE p.PharmacyName LIKE '%$search%' OR u.Fname LIKE '%$search%'
+          ORDER BY p.IsApproved ASC";
 $result = mysqli_query($conn, $query);
 
 include('../includes/header.php');
@@ -29,11 +32,20 @@ include('../includes/sidebar.php');
 
 <main class="flex-1 p-8 bg-gray-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300">
 
-
-    <div class="mb-8">
+    <!-- الترويسة مع شريط البحث -->
+    <div class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 class="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
             <i data-lucide="hospital" class="text-blue-500"></i> <?php echo $lang['pharmacies']; ?>
         </h1>
+
+        <!-- فورم البحث الخاص بالصيدليات فقط -->
+        <form method="GET" class="w-full md:w-96">
+            <div class="relative">
+                <input type="text" name="search" placeholder="ابحث عن صيدلية بالاسم..." value="<?php echo htmlspecialchars($search); ?>"
+                    class="w-full p-3 rounded-2xl border dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <i data-lucide="search" class="absolute left-3 top-3.5 text-gray-400"></i>
+            </div>
+        </form>
     </div>
 
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden transition-colors">
@@ -42,6 +54,7 @@ include('../includes/sidebar.php');
                 <tr class="text-gray-600 dark:text-gray-400 text-sm <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                     <th class="p-6 font-bold"><?php echo $lang['pharmacy_name']; ?></th>
                     <th class="p-6 font-bold"><?php echo $lang['owner']; ?></th>
+                    <th class="p-6 font-bold"><?php echo $lang['phone']; ?></th>
                     <th class="p-6 font-bold"><?php echo $lang['location_work']; ?></th>
                     <th class="p-6 font-bold"><?php echo $lang['join_date']; ?></th>
                     <th class="p-6 font-bold"><?php echo $lang['status']; ?></th>
@@ -50,7 +63,7 @@ include('../includes/sidebar.php');
             </thead>
             <tbody class="divide-y divide-gray-50 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                 <?php while ($row = mysqli_fetch_assoc($result)) { ?>
-                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                    <tr id="row_<?php echo $row['UserID']; ?>" class="transition-all duration-500 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
 
                         <td class="p-6">
                             <div class="flex items-center gap-3">
@@ -64,12 +77,19 @@ include('../includes/sidebar.php');
                             <?php echo htmlspecialchars($row['Fname'] . ' ' . $row['Lname']); ?>
                         </td>
 
+                        <td class="p-6 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                            <div class="flex items-center gap-2 mb-1">
+                                <i data-lucide="phone" class="w-4 h-4 text-emerald-500"></i>
+                                <?php echo htmlspecialchars($row['Phone']); ?>
+                            </div>
+                        </td>
+
                         <td class="p-6 text-sm text-gray-600 dark:text-gray-300">
                             <div class="flex items-center gap-2 mb-1">
                                 <i data-lucide="map-pin" class="w-4 h-4 text-emerald-500 flex-shrink-0"></i>
                                 <span><?php echo htmlspecialchars($row['Location']); ?></span>
                             </div>
-                            <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                            <div class="flex items-center gap-2 mb-1">
                                 <i data-lucide="clock" class="w-4 h-4 text-emerald-500 flex-shrink-0"></i>
                                 <span><?php echo htmlspecialchars($row['WorkingHours']); ?></span>
                             </div>
@@ -117,7 +137,6 @@ include('../includes/sidebar.php');
         let btnColor = '#ef4444';
         let iconType = 'warning';
 
-        // تخصيص رسالة التعليق (Suspend)
         if (type === 'suspend') {
             modalTitle = Lang.suspendTitle;
             modalText = Lang.suspendText;
@@ -135,16 +154,12 @@ include('../includes/sidebar.php');
             cancelButtonColor: '#6b7280',
             confirmButtonText: modalBtn,
             cancelButtonText: Lang.cancel,
-            // ستايل الدارك مود
             background: Lang.isDark ? '#1e293b' : '#fff',
             color: Lang.isDark ? '#f8fafc' : '#1f2937'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = `pharmacies.php?action=${type}&id=${id}`;
-            }
+        }).then((res) => {
+            if (res.isConfirmed) window.location.href = `pharmacies.php?action=${type}&id=${id}`;
         });
     }
     lucide.createIcons();
 </script>
-
 <?php include('../includes/footer.php'); ?>
