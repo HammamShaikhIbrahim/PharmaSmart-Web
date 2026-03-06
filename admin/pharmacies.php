@@ -50,20 +50,20 @@ include('../includes/sidebar.php');
 
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden transition-colors">
         <table class="w-full border-collapse">
-            <thead class="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-100 dark:border-slate-700">
+            <thead class="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-100 dark:border-slate-700 ">
                 <tr class="text-gray-600 dark:text-gray-400 text-sm <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                     <th class="p-6 font-bold"><?php echo $lang['pharmacy_name']; ?></th>
                     <th class="p-6 font-bold"><?php echo $lang['owner']; ?></th>
                     <th class="p-6 font-bold"><?php echo $lang['phone']; ?></th>
                     <th class="p-6 font-bold"><?php echo $lang['location_work']; ?></th>
                     <th class="p-6 font-bold"><?php echo $lang['join_date']; ?></th>
-                    <th class="p-6 font-bold"><?php echo $lang['status']; ?></th>
+                    <th class="p-6 font-bold text-center"><?php echo $lang['status']; ?></th>
                     <th class="p-6 font-bold text-center"><?php echo $lang['actions']; ?></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                 <?php while ($row = mysqli_fetch_assoc($result)) { ?>
-                    <tr id="row_<?php echo $row['UserID']; ?>" class="transition-all duration-500 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                    <tr id="row_<?php echo $row['UserID']; ?>" class="transition-all duration-500 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition">
 
                         <td class="p-6">
                             <div class="flex items-center gap-3">
@@ -95,7 +95,7 @@ include('../includes/sidebar.php');
                             </div>
                         </td>
 
-                        <td class="p-6 text-sm text-gray-500 dark:text-gray-400">
+                        <td class="p-6 text-sm text-gray-500 dark:text-gray-400 text-center">
                             <span dir="ltr"><?php echo date('Y-m-d', strtotime($row['CreatedAt'])); ?></span>
                         </td>
 

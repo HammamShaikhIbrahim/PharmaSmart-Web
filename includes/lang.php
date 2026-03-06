@@ -19,6 +19,8 @@ if ($current_lang == 'ar') {
     $lang['switch_lang_code'] = "en";
 
     // الداشبورد
+    $lang['admin_panel'] = "لوحة الإدارة";
+    $lang['pharmacy_system'] = "نظام إدارة الصيدلية";
     $lang['active_pharma'] = "الصيدليات العاملة";
     $lang['pending_req'] = "طلبات الانضمام";
     $lang['total_patients'] = "إجمالي المرضى";
@@ -29,7 +31,7 @@ if ($current_lang == 'ar') {
     $lang['filter_pending'] = "معلق";
     $lang['live_update'] = "تحديث مباشر";
     $lang['pharma_info'] = "معلومات الصيدلية";
-    $lang['click_map'] = "اضغط على نقطة حمراء في الخريطة لعرض التفاصيل.";
+    $lang['click_map'] = "اضغط على أي نقطة في الخريطة لعرض التفاصيل.";
 
     // معلومات الصيدلية (الجافاسكربت)
     $lang['pharmacist_name'] = "الصيدلاني";
@@ -55,6 +57,9 @@ if ($current_lang == 'ar') {
     $lang['years'] = "سنة";
     $lang['not_specified'] = "غير محدد";
 
+    // Admin vs Pharmacist
+    $lang['admin'] = "مدير";
+    $lang['pharmacist'] = "صيدلي";
 
     // SweetAlert Translations
     $lang['swal_title'] = "هل أنت متأكد؟";
@@ -64,7 +69,6 @@ if ($current_lang == 'ar') {
     $lang['suspend_title'] = "تعليق الحساب؟";
     $lang['suspend_text'] = "سيتم إيقاف الصيدلية مؤقتاً عن العمل.";
     $lang['suspend_confirm'] = "نعم، علق الحساب";
-
 } else {
     // General
     $lang['dashboard'] = "Dashboard";
@@ -77,6 +81,8 @@ if ($current_lang == 'ar') {
     $lang['switch_lang_code'] = "ar";
 
     // Dashboard
+    $lang['admin_panel'] = "Admin Panel";
+    $lang['pharmacy_system'] = "Pharmacy Management System";
     $lang['active_pharma'] = "Active Pharmacies";
     $lang['pending_req'] = "Pending Requests";
     $lang['total_patients'] = "Total Patients";
@@ -87,7 +93,7 @@ if ($current_lang == 'ar') {
     $lang['filter_pending'] = "Pending";
     $lang['live_update'] = "Live";
     $lang['pharma_info'] = "Pharmacy Info";
-    $lang['click_map'] = "Click a red dot on the map to view details.";
+    $lang['click_map'] = "Click on any point on the map to view details.";
 
     // Pharmacy Info (JS)
     $lang['pharmacist_name'] = "Pharmacist Name";
@@ -114,6 +120,9 @@ if ($current_lang == 'ar') {
     $lang['not_specified'] = "Not specified";
 
 
+    // Admin vs Pharmacist
+    $lang['admin'] = "Admin";
+    $lang['pharmacist'] = "Pharmacist";
 
     // SweetAlert Translations
     $lang['swal_title'] = "Are you sure?";
@@ -123,5 +132,4 @@ if ($current_lang == 'ar') {
     $lang['suspend_title'] = "Suspend Account?";
     $lang['suspend_text'] = "Pharmacy will be temporarily paused.";
     $lang['suspend_confirm'] = "Yes, Suspend";
-
 }

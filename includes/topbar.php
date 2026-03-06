@@ -14,7 +14,11 @@ $fullname = $user_data['Fname'] . ' ' . $user_data['Lname'];
             class="w-10 h-10 rounded-full shadow-sm border-2 border-white dark:border-slate-600">
         <div class="text-start rtl:text-right">
             <h3 class="text-sm font-bold text-gray-800 dark:text-white leading-tight"><?php echo htmlspecialchars($fullname); ?></h3>
-            <p class="text-[10px] text-gray-400 font-medium tracking-wide">Admin</p>
+            <?php if (isset($_SESSION['role_id']) && $_SESSION['role_id'] == 1): ?>
+                <p class="text-[10px] text-gray-400 font-medium tracking-wide"><?php echo $lang['admin']; ?></p>
+            <?php else: ?>
+                 <p class="text-[10px] text-gray-400 font-medium tracking-wide"><?php echo $lang['pharmacist']; ?></p>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -23,8 +27,8 @@ $fullname = $user_data['Fname'] . ' ' . $user_data['Lname'];
 
         <!-- زر الوضع الليلي -->
         <button id="theme-toggle" type="button" class="text-gray-400 hover:text-yellow-500 dark:text-yellow-400 transition-transform hover:rotate-12">
-            <i id="theme-toggle-dark-icon" data-lucide="moon" class="hidden w-5 h-5"></i>
             <i id="theme-toggle-light-icon" data-lucide="sun" class="hidden w-5 h-5"></i>
+            <i id="theme-toggle-dark-icon" data-lucide="moon" class="hidden w-5 h-5"></i>
         </button>
 
         <!-- زر اللغة -->
@@ -38,21 +42,21 @@ $fullname = $user_data['Fname'] . ' ' . $user_data['Lname'];
 
 <!-- سكربت التحكم بالوضع الليلي -->
 <script>
-    var themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
     var themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+    var themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
 
     // ضبط الأيقونة عند تحميل الصفحة
-    if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        themeToggleLightIcon.classList.remove('hidden');
-    } else {
+    if (localStorage.getItem('color-theme') === 'light' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
         themeToggleDarkIcon.classList.remove('hidden');
+    } else {
+        themeToggleLightIcon.classList.remove('hidden');
     }
 
     // التبديل عند الضغط
     var themeToggleBtn = document.getElementById('theme-toggle');
     themeToggleBtn.addEventListener('click', function() {
-        themeToggleDarkIcon.classList.toggle('hidden');
         themeToggleLightIcon.classList.toggle('hidden');
+        themeToggleDarkIcon.classList.toggle('hidden');
 
         if (localStorage.getItem('color-theme') === 'dark') {
             document.documentElement.classList.remove('dark');

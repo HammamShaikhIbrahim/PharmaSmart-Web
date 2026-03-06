@@ -36,7 +36,19 @@ if ($dir == 'rtl') {
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+    /* تنسيق الزر النشط في الفلتر */
+    .active-filter {
+        background-color: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        color: #1f2937 !important;
+    }
 
+    .dark .active-filter {
+        background-color: #334155;
+        color: white !important;
+    }
+</style>
 <main class="flex-1 p-8 bg-gray-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300">
 
     <?php include('../includes/topbar.php'); ?>
@@ -109,10 +121,10 @@ if ($dir == 'rtl') {
 
     <!-- قسم الخريطة -->
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
-        
+
         <!-- الترويسة وأزرار الفلترة -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-            
+
             <h2 class="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
                 <i data-lucide="map" class="text-blue-500"></i> <?php echo $lang['map_title']; ?>
             </h2>
@@ -123,13 +135,12 @@ if ($dir == 'rtl') {
                 <button onclick="filterMap('active', this)" class="filter-btn px-4 py-1.5 rounded-lg text-sm font-bold text-emerald-600 transition"><?php echo $lang['filter_active']; ?></button>
                 <button onclick="filterMap('pending', this)" class="filter-btn px-4 py-1.5 rounded-lg text-sm font-bold text-amber-500 transition"><?php echo $lang['filter_pending']; ?></button>
             </div>
-            
+
         </div>
 
         <div class="relative w-full h-[550px] rounded-2xl overflow-hidden border-2 border-gray-100 dark:border-slate-700 shadow-inner bg-gray-100 dark:bg-slate-600">
             <div id="map" class="absolute inset-0 z-0"></div>
-
-            <div class="absolute top-4 <?php echo $panel_pos; ?> bottom-4 w-80 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-600 z-[1000] flex flex-col transition-all duration-300">
+            <div class="absolute top-4 <?php echo $panel_pos; ?> bottom-4 w-120 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-600 z-[1000] flex flex-col transition-all duration-300">
                 <div class="bg-gray-50 dark:bg-slate-700 p-4 border-b border-gray-200 dark:border-slate-600 rounded-t-2xl text-center">
                     <h3 class="text-xl font-black text-gray-800 dark:text-white"><?php echo $lang['pharma_info']; ?></h3>
                 </div>
@@ -142,20 +153,20 @@ if ($dir == 'rtl') {
     </div>
 </main>
 
-<style>
-    /* تنسيق الزر النشط في الفلتر */
-    .active-filter { background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #1f2937 !important; }
-    .dark .active-filter { background-color: #334155; color: white !important; }
-</style>
-
 <script>
-    var map = L.map('map', { zoomControl: false }).setView([31.90, 35.20], 8);
-    L.control.zoom({ position: '<?php echo $zoom_pos; ?>' }).addTo(map);
+    var map = L.map('map', {
+        zoomControl: false
+    }).setView([31.90, 35.20], 8);
+    L.control.zoom({
+        position: '<?php echo $zoom_pos; ?>'
+    }).addTo(map);
 
     var tileUrl = document.documentElement.classList.contains('dark') ?
         'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' :
         'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-    L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
+    L.tileLayer(tileUrl, {
+        maxZoom: 19
+    }).addTo(map);
 
     // 💡 مجموعة (LayerGroup) للتحكم بمسح وإضافة الدبابيس
     var markersLayer = L.layerGroup().addTo(map);
@@ -172,7 +183,7 @@ if ($dir == 'rtl') {
 
     function updatePharmacyInfo(pharma) {
         const detailsContainer = document.getElementById('pharmacy-details');
-        
+
         // تغيير لون الترويسة في اللوحة الجانبية بناءً على الحالة (أخضر=نشط، أصفر=معلق)
         let headerBg = pharma.IsApproved == 1 ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100' : 'bg-amber-50 dark:bg-amber-900/30 border-amber-100';
         let headerText = pharma.IsApproved == 1 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400';
@@ -239,7 +250,10 @@ if ($dir == 'rtl') {
 
                 marker.on('click', function() {
                     updatePharmacyInfo(p);
-                    map.flyTo([p.Latitude, p.Longitude], 12, { animate: true, duration: 1.5 });
+                    map.flyTo([p.Latitude, p.Longitude], 12, {
+                        animate: true,
+                        duration: 1.5
+                    });
                 });
             }
         });
@@ -251,7 +265,7 @@ if ($dir == 'rtl') {
         document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active-filter'));
         // إضافة كلاس النشط للزر الذي تم الضغط عليه
         btnElement.classList.add('active-filter');
-        
+
         // إعادة رسم الخريطة
         drawMarkers(type);
     }

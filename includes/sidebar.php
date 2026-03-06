@@ -24,7 +24,7 @@ $hover_color = ($role_id == 1) ? 'hover:bg-blue-600' : 'hover:bg-emerald-600';
             PharmaSmart
         </h2>
         <p class="text-xs text-gray-400 mt-2 font-medium">
-            <?php echo ($role_id == 1) ? 'لوحة الإدارة العليا' : 'نظام إدارة الصيدلية'; ?>
+            <?php echo ($role_id == 1) ? $lang['admin_panel'] : $lang['pharmacy_system']; ?>
         </p>
     </div>
 
