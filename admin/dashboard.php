@@ -119,9 +119,9 @@ if ($dir == 'rtl') {
 
             <!-- 💡 أزرار فلترة الخريطة -->
             <div class="flex bg-gray-100 dark:bg-slate-900 p-1 rounded-xl">
-                <button onclick="filterMap('all', this)" class="filter-btn active-filter px-4 py-1.5 rounded-lg text-sm font-bold text-gray-600 dark:text-gray-400 transition">الكل</button>
-                <button onclick="filterMap('active', this)" class="filter-btn px-4 py-1.5 rounded-lg text-sm font-bold text-emerald-600 transition">النشطة</button>
-                <button onclick="filterMap('pending', this)" class="filter-btn px-4 py-1.5 rounded-lg text-sm font-bold text-amber-500 transition">المعلقة</button>
+                <button onclick="filterMap('all', this)" class="filter-btn active-filter px-4 py-1.5 rounded-lg text-sm font-bold text-gray-600 dark:text-gray-400 transition"><?php echo $lang['filter_all']; ?></button>
+                <button onclick="filterMap('active', this)" class="filter-btn px-4 py-1.5 rounded-lg text-sm font-bold text-emerald-600 transition"><?php echo $lang['filter_active']; ?></button>
+                <button onclick="filterMap('pending', this)" class="filter-btn px-4 py-1.5 rounded-lg text-sm font-bold text-amber-500 transition"><?php echo $lang['filter_pending']; ?></button>
             </div>
             
         </div>
