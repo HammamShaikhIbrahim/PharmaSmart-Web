@@ -8,6 +8,24 @@ $dir = ($current_lang == 'ar') ? 'rtl' : 'ltr';
 $lang = array();
 
 if ($current_lang == 'ar') {
+
+    //login page
+    $lang['login_title'] = "تسجيل الدخول";
+    $lang['login_subtitle'] = "بوابتك لإدارة الصيدلية باحترافية";
+    $lang['email'] = "البريد الإلكتروني";
+    $lang['password'] = "كلمة المرور";
+    $lang['btn_login'] = "تسجيل الدخول";
+    $lang['new_account'] = "صيدلية جديدة؟";
+    $lang['register_link'] = "قدم طلب انضمام";
+
+    // أخطاء تسجيل الدخول (عربي)
+    $lang['err_patient'] = "عذراً، نظام الويب مخصص للصيادلة والإدارة فقط. يرجى استخدام تطبيق الموبايل.";
+    $lang['err_pending'] = "حسابك معلق حالياً، يرجى انتظار موافقة الإدارة.";
+    $lang['err_pass'] = "كلمة المرور غير صحيحة.";
+    $lang['err_email'] = "البريد الإلكتروني غير مسجل.";
+    $lang['err_title'] = "خطأ في تسجيل الدخول";
+    $lang['ok_btn'] = "حسناً";
+
     // عام
     $lang['dashboard'] = "لوحة القيادة";
     $lang['pharmacies'] = "إدارة الصيدليات";
@@ -70,6 +88,25 @@ if ($current_lang == 'ar') {
     $lang['suspend_text'] = "سيتم إيقاف الصيدلية مؤقتاً عن العمل.";
     $lang['suspend_confirm'] = "نعم، علق الحساب";
 } else {
+
+    // Login Page
+    $lang['login_title'] = "Login";
+    $lang['login_subtitle'] = "Your gateway to professional pharmacy management";
+    $lang['email'] = "Email Address";
+    $lang['password'] = "Password";
+    $lang['btn_login'] = "Login";
+    $lang['new_account'] = "New Pharmacy?";
+    $lang['register_link'] = "Submit Join Request";
+
+    // أخطاء تسجيل الدخول (إنجليزي)
+    $lang['err_patient'] = "Sorry, Web system is for Pharmacists & Admin only. Please use the mobile app.";
+    $lang['err_pending'] = "Your account is pending, please wait for admin approval.";
+    $lang['err_pass'] = "Incorrect password.";
+    $lang['err_email'] = "Email not registered.";
+    $lang['err_title'] = "Login Error";
+    $lang['ok_btn'] = "OK";
+
+
     // General
     $lang['dashboard'] = "Dashboard";
     $lang['pharmacies'] = "Pharmacies";
