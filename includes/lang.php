@@ -119,6 +119,27 @@ if ($current_lang == 'ar') {
     $lang['manage_inventory'] = "إدارة المخزون";
     $lang['no_low_stock_items'] = "لا توجد عناصر ناقصة في المخزون";
 
+    // صفحة الأدوية والمخزون
+    $lang['product_inventory'] = "مخزون الأدوية";
+    $lang['add_product'] = "إضافة دواء +";
+    $lang['search_product'] = "ابحث عن دواء بالاسم...";
+    $lang['product'] = "المنتج";
+    $lang['category'] = "التصنيف";
+    $lang['stock'] = "المخزون";
+    $lang['price'] = "سعر البيع";
+    $lang['cost'] = "التكلفة";
+    $lang['margin'] = "الربح";
+    $lang['expiry'] = "الانتهاء";
+    $lang['add_new_product'] = "إضافة دواء جديد";
+    $lang['edit_product'] = "تعديل بيانات الدواء";
+    $lang['product_name'] = "اسم الدواء";
+    $lang['min_stock'] = "الحد الأدنى للمخزون";
+    $lang['description'] = "الوصف / ملاحظات";
+    $lang['product_image'] = "صورة الدواء";
+    $lang['is_controlled'] = "دواء مراقب (يحتاج وصفة طبية)";
+    $lang['cancel'] = "إلغاء";
+    $lang['confirm'] = "تأكيد";
+
 } else {
 
     // Login Page
@@ -233,4 +254,25 @@ if ($current_lang == 'ar') {
     $lang['stock_excellent'] = "Stock is excellent, no shortages!";
     $lang['manage_inventory'] = "Manage Inventory";
     $lang['no_low_stock_items'] = "No low stock items in inventory.";
+
+    // Medicines & Stock Page
+    $lang['product_inventory'] = "Product Inventory";
+    $lang['add_product'] = "Add Product +";
+    $lang['search_product'] = "Search products by name...";
+    $lang['product'] = "Product";
+    $lang['category'] = "Category";
+    $lang['stock'] = "Stock";
+    $lang['price'] = "Price";
+    $lang['cost'] = "Cost";
+    $lang['margin'] = "Margin";
+    $lang['expiry'] = "Expiry";
+    $lang['add_new_product'] = "Add New Product";
+    $lang['edit_product'] = "Edit Product";
+    $lang['product_name'] = "Product Name";
+    $lang['min_stock'] = "Minimum Stock";
+    $lang['description'] = "Description / Notes";
+    $lang['product_image'] = "Product Image";
+    $lang['is_controlled'] = "Controlled Med (Requires Prescription)";
+    $lang['cancel'] = "Cancel";
+    $lang['confirm'] = "Confirm";
 }
