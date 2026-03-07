@@ -193,21 +193,37 @@ if (isset($_POST['login'])) {
             themeToggleLightIcon.classList.remove('hidden'); // نعرض الشمس في الوضع الليلي
         }
 
+        // دالة تحديث أيقونات الوضع الليلي/النهاري
+        function updateThemeIcons() {
+            var isDark = document.documentElement.classList.contains('dark');
+            var sunIcon = document.getElementById('theme-toggle-light-icon');
+            var moonIcon = document.getElementById('theme-toggle-dark-icon');
+
+            if (isDark) {
+                sunIcon.classList.remove('hidden'); // إظهار الشمس في الوضع الليلي
+                moonIcon.classList.add('hidden');
+            } else {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden'); // إظهار القمر في الوضع النهاري
+            }
+        }
+
+        // تشغيل عند التحميل
+        updateThemeIcons();
+
+        // التبديل عند الضغط
         var themeToggleBtn = document.getElementById('theme-toggle');
         themeToggleBtn.addEventListener('click', function() {
-            // التبديل بين الأيقونات
-            themeToggleLightIcon.classList.toggle('hidden');
-            themeToggleDarkIcon.classList.toggle('hidden');
+            document.documentElement.classList.toggle('dark');
 
-            if (localStorage.getItem('color-theme') === 'dark') {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('color-theme', 'light');
-                document.cookie = "theme=light; path=/";
-            } else {
-                document.documentElement.classList.add('dark');
+            if (document.documentElement.classList.contains('dark')) {
                 localStorage.setItem('color-theme', 'dark');
                 document.cookie = "theme=dark; path=/";
+            } else {
+                localStorage.setItem('color-theme', 'light');
+                document.cookie = "theme=light; path=/";
             }
+            updateThemeIcons(); // تحديث الأيقونات فوراً بعد التغيير
         });
     </script>
 

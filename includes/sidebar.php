@@ -66,19 +66,19 @@ $hover_color = ($role_id == 1) ? 'hover:bg-blue-600' : 'hover:bg-emerald-600';
         <?php elseif ($role_id == 2): ?>
 
             <a href="../pharmacist/dashboard.php" class="flex items-center gap-3 p-3 rounded-xl transition duration-200 <?php echo $hover_color; ?>">
-                <i data-lucide="layout-dashboard"></i> <span>الرئيسية</span>
+                <i data-lucide="layout-dashboard"></i> <span><?php echo $lang['dashboard_link']; ?></span>
             </a>
 
             <a href="../pharmacist/medicines.php" class="flex items-center gap-3 p-3 rounded-xl transition duration-200 <?php echo $hover_color; ?>">
-                <i data-lucide="pill"></i> <span>الأدوية والمخزون</span>
+                <i data-lucide="pill"></i> <span><?php echo $lang['medicines_stock']; ?></span>
             </a>
 
             <a href="../pharmacist/orders.php" class="flex items-center gap-3 p-3 rounded-xl transition duration-200 <?php echo $hover_color; ?>">
-                <i data-lucide="shopping-bag"></i> <span>الطلبات</span>
+                <i data-lucide="shopping-bag"></i> <span><?php echo $lang['orders']; ?></span>
             </a>
 
             <a href="../pharmacist/chat.php" class="flex items-center gap-3 p-3 rounded-xl transition duration-200 <?php echo $hover_color; ?>">
-                <i data-lucide="message-square"></i> <span>المحادثات</span>
+                <i data-lucide="message-square"></i> <span><?php echo $lang['chats']; ?></span>
             </a>
 
         <?php endif; ?>

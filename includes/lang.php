@@ -33,8 +33,14 @@ if ($current_lang == 'ar') {
     $lang['logout'] = "تسجيل الخروج";
     $lang['actions'] = "الإجراءات";
     $lang['status'] = "الحالة";
+    $lang['dashboard_link'] = "الرئيسية";
+    $lang['medicines_stock'] = "الأدوية والمخزون";
+    $lang['orders'] = "الطلبات";
+    $lang['chats'] = "المحادثات";
     $lang['switch_lang_text'] = "English";
     $lang['switch_lang_code'] = "en";
+
+    //Admin Pages
 
     // الداشبورد
     $lang['admin_panel'] = "لوحة الإدارة";
@@ -89,6 +95,30 @@ if ($current_lang == 'ar') {
     $lang['suspend_title'] = "تعليق الحساب؟";
     $lang['suspend_text'] = "سيتم إيقاف الصيدلية مؤقتاً عن العمل.";
     $lang['suspend_confirm'] = "نعم، علق الحساب";
+
+    // Pharmacy Pages
+
+    //الداشبورد
+    $lang['todays_sales'] = "مبيعات اليوم";
+    $lang['currency'] = "₪"; // أو العملة التي تفضلها
+    $lang['pending_orders'] = "طلبات قيد الانتظار";
+    $lang['low_stock_items'] = "نواقص المخزون";
+    $lang['expiring_soon'] = "قريب الانتهاء";
+    $lang['recent_orders'] = "أحدث الطلبات";
+    $lang['order_id'] = "رقم الطلب";
+    $lang['time'] = "الوقت";
+    $lang['customer'] = "العميل";
+    $lang['amount'] = "المبلغ";
+    $lang['items'] = "العناصر";
+    $lang['low_stock_alert'] = "تنبيه نقص المخزون";
+    $lang['out_of'] = "من أصل";
+    $lang['days'] = "يوم";
+    $lang['view_all'] = "عرض الكل";
+    $lang['no_recent_orders'] = "لا يوجد طلبات حديثة";
+    $lang['stock_excellent'] = "المخزون ممتاز، لا يوجد نواقص!";
+    $lang['manage_inventory'] = "إدارة المخزون";
+    $lang['no_low_stock_items'] = "لا توجد عناصر ناقصة في المخزون";
+
 } else {
 
     // Login Page
@@ -116,8 +146,14 @@ if ($current_lang == 'ar') {
     $lang['logout'] = "Logout";
     $lang['actions'] = "Actions";
     $lang['status'] = "Status";
+    $lang['dashboard_link'] = "Dashboard";
+    $lang['medicines_stock'] = "Medicines & Stock";
+    $lang['orders'] = "Orders";
+    $lang['chats'] = "Chats";
     $lang['switch_lang_text'] = "عربي";
     $lang['switch_lang_code'] = "ar";
+
+    // Admin Pages
 
     // Dashboard
     $lang['admin_panel'] = "Admin Panel";
@@ -174,4 +210,27 @@ if ($current_lang == 'ar') {
     $lang['suspend_title'] = "Suspend Account?";
     $lang['suspend_text'] = "Pharmacy will be temporarily paused.";
     $lang['suspend_confirm'] = "Yes, Suspend";
+
+    // Pharmacy Pages
+
+    // Dashboard
+    $lang['todays_sales'] = "Today's Sales";
+    $lang['currency'] = "₪"; // or your preferred currency
+    $lang['pending_orders'] = "Pending Orders";
+    $lang['low_stock_items'] = "Low Stock Items";
+    $lang['expiring_soon'] = "Expiring Soon";
+    $lang['recent_orders'] = "Recent Orders";
+    $lang['order_id'] = "Order ID";
+    $lang['time'] = "Time";
+    $lang['customer'] = "Customer";
+    $lang['amount'] = "Amount";
+    $lang['items'] = "Items";
+    $lang['low_stock_alert'] = "Low Stock Alert";
+    $lang['out_of'] = "out of";
+    $lang['days'] = "days";
+    $lang['view_all'] = "View All";
+    $lang['no_recent_orders'] = "No recent orders.";
+    $lang['stock_excellent'] = "Stock is excellent, no shortages!";
+    $lang['manage_inventory'] = "Manage Inventory";
+    $lang['no_low_stock_items'] = "No low stock items in inventory.";
 }
