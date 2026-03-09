@@ -82,6 +82,7 @@ if ($current_lang == 'ar') {
     $lang['years'] = "سنة";
     $lang['not_specified'] = "غير محدد";
     $lang['search_patient'] = "ابحث عن مريض بالاسم...";
+    $lang['no_data'] = "لا يوجد بيانات";
 
     // Admin vs Pharmacist
     $lang['admin'] = "مدير";
@@ -139,7 +140,8 @@ if ($current_lang == 'ar') {
     $lang['is_controlled'] = "دواء مراقب (يحتاج وصفة طبية)";
     $lang['cancel'] = "إلغاء";
     $lang['confirm'] = "تأكيد";
-
+    $lang['uncategorized'] = "غير مصنف";
+    $lang['select_category'] = "اختر تصنيفاً...";
 } else {
 
     // Login Page
@@ -217,6 +219,7 @@ if ($current_lang == 'ar') {
     $lang['years'] = "years";
     $lang['not_specified'] = "Not specified";
     $lang['search_patient'] = "Search patient by name...";
+    $lang['no_data'] = "No data available";
 
 
     // Admin vs Pharmacist
@@ -275,4 +278,6 @@ if ($current_lang == 'ar') {
     $lang['is_controlled'] = "Controlled Med (Requires Prescription)";
     $lang['cancel'] = "Cancel";
     $lang['confirm'] = "Confirm";
+    $lang['uncategorized'] = "Uncategorized";
+    $lang['select_category'] = "Select a category...";
 }

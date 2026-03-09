@@ -12,6 +12,16 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- ========================================== -->
+    <!-- 💡 استيراد خطوط احترافية من Google Fonts   -->
+    <!-- Tajawal: مخصص للغة العربية (أنيق ومقروء) -->
+    <!-- Inter: مخصص للغة الإنجليزية (حديث وممتاز للداشبورد) -->
+    <!-- استوردنا الأوزان: 400(عادي), 500(متوسط), 700(عريض), 800(عريض جداً) -->
+    <!-- ========================================== -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
     <script>
         tailwind.config = {
             darkMode: 'class', // الاعتماد على class="dark" في <html>
@@ -25,9 +35,23 @@
         } else {
             document.documentElement.classList.remove('dark');
         }
+        // إعدادات تيلويند لإجبار النظام على استخدام خط Cairo في كل اللغات
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        // هنا نخبر تيلويند أن الخط الأساسي (sans) هو Cairo
+                        sans: ['Cairo', 'sans-serif'], 
+                    }
+                }
+            }
+        }
     </script>
 
     <style>
+
+
         /* إخفاء سكرول الشاشة الرئيسي، السكرول سيكون داخل الـ main فقط */
         body,
         html {
