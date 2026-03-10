@@ -115,8 +115,7 @@ include('../includes/sidebar.php');
 
 
 
-<main class="flex-1 p-8 bg-slate-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300">
-
+<main class="flex-1 p-8 bg-[#F2FBF5] dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300">
     <?php include('../includes/topbar.php'); ?>
 
 
@@ -137,48 +136,52 @@ include('../includes/sidebar.php');
 
     =========================================== -->
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
+    <div class="mb-8 flex justify-between items-center">
 
-        <!-- مبيعات اليوم -->
-        <!-- 💡 تم التعديل لثيم الفيروزي الطبي (Teal) ليتطابق مع احترافية الأدمن -->
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 flex flex-col justify-center border-b-4 border-transparent hover:border-b-teal-500 dark:hover:border-b-teal-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-            <div class="flex justify-between items-center mb-2">
-                <div>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-1"><?php echo isset($lang['todays_sales']) ? $lang['todays_sales'] : "مبيعات اليوم"; ?></p>
-                    <h3 class="text-3xl font-black text-gray-800 dark:text-white" dir="ltr"><?php echo $todaysSales; ?> ₪</h3>
-                </div>
-                <i data-lucide="banknote" class="w-12 h-12 text-teal-500 drop-shadow-sm opacity-80"></i>
-            </div>
+        <div class="w-full flex items-center gap-3">
+
+            <!-- (#4ADE80) بما يتوافق مع ثيم الصيدلي -->
+
+            <i data-lucide="layout-dashboard" class="text-[#4ADE80] w-8 h-8"></i>
+
+            <h1 class="text-3xl font-black text-gray-800 dark:text-white"><?php echo $lang['dashboard']; ?></h1>
+
         </div>
 
-
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- مبيعات اليوم -->
+        <!-- 💡 تطابق هيكلي مع الأدمن: shadow-lg, hover:-translate-y-1, border-b-4 -->
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 flex flex-col justify-center border-b-4 border-transparent hover:border-b-[#4ADE80] dark:hover:border-b-[#4ADE80] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <div class="flex justify-between items-center mb-2">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-1"><?php echo $lang['todays_sales']; ?></p>
+                    <h3 class="text-3xl font-black text-gray-800 dark:text-white"><?php echo $todaysSales; ?> ₪</h3>
+                </div>
+                <i data-lucide="banknote" class="w-12 h-12 text-[#4ADE80] drop-shadow-sm opacity-80"></i>
+            </div>
+        </div>
 
         <!-- الطلبات المعلقة -->
 
         <!-- 💡 أزرق فاتح للتمييز بين الكروت -->
 
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-center relative border-b-4 border-transparent hover:border-blue-500 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 flex flex-col justify-center relative border-b-4 border-transparent hover:border-b-blue-500 dark:hover:border-b-blue-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 
             <div class="flex justify-between items-center mb-2">
-
                 <div>
-
-                    <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-1"><?php echo isset($lang['pending_orders']) ? $lang['pending_orders'] : "الطلبات المعلقة"; ?></p>
-
-                    <h3 class="text-3xl font-black text-blue-600 dark:text-blue-400"><?php echo $pendingOrders; ?></h3>
-
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-1"><?php echo $lang['pending_orders']; ?></p>
+                    <h3 class="text-3xl font-black text-gray-800 dark:text-white"><?php echo $pendingOrders; ?></h3>
                 </div>
-
                 <i data-lucide="shopping-bag" class="w-12 h-12 text-blue-500 dark:text-blue-400 opacity-80 drop-shadow-sm"></i>
-
             </div>
 
             <!-- تنبيه احمر إذا كان هناك طلبات معلقة -->
 
             <?php if ($pendingOrders > 0): ?>
 
-                <span class="absolute top-6 rtl:left-6 ltr:right-6 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-sm"></span>
+                <span class="absolute top-4 rtl:left-4 ltr:right-4 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-sm"></span>
 
             <?php endif; ?>
 
@@ -190,15 +193,15 @@ include('../includes/sidebar.php');
 
         <!-- 💡 أحمر/وردي للتنبيه من النواقص -->
 
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-center border-b-4 border-transparent hover:border-rose-500 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 flex flex-col justify-center border-b-4 border-transparent hover:border-b-rose-500 dark:hover:border-b-rose-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 
             <div class="flex justify-between items-center mb-2">
 
                 <div>
 
-                    <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-1"><?php echo isset($lang['low_stock_items']) ? $lang['low_stock_items'] : "نواقص المخزون"; ?></p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-1"><?php echo $lang['low_stock_items']; ?></p>
 
-                    <h3 class="text-3xl font-black text-rose-500 dark:text-rose-400"><?php echo $lowStockCount; ?></h3>
+                    <h3 class="text-3xl font-black text-gray-800 dark:text-white"><?php echo $lowStockCount; ?></h3>
 
                 </div>
 
@@ -214,15 +217,15 @@ include('../includes/sidebar.php');
 
         <!-- 💡 برتقالي للدلالة على انتهاء الصلاحية -->
 
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-center border-b-4 border-transparent hover:border-orange-500 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 flex flex-col justify-center border-b-4 border-transparent hover:border-b-orange-500 dark:hover:border-b-orange-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 
             <div class="flex justify-between items-center mb-2">
 
                 <div>
 
-                    <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-1"><?php echo isset($lang['expiring_soon']) ? $lang['expiring_soon'] : "قريبة الانتهاء"; ?></p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-1"><?php echo $lang['expiring_soon']; ?></p>
 
-                    <h3 class="text-3xl font-black text-orange-500 dark:text-orange-400"><?php echo $expiringCount; ?></h3>
+                    <h3 class="text-3xl font-black text-gray-800 dark:text-white"><?php echo $expiringCount; ?></h3>
 
                 </div>
 
@@ -269,8 +272,7 @@ include('../includes/sidebar.php');
 
                             <?php while ($order = mysqli_fetch_assoc($recentOrdersResult)): ?>
 
-                                <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition duration-150">
-
+                                <tr class="hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200">
                                     <td class="p-4">
 
                                         <div class="font-bold text-gray-800 dark:text-white">#ORD-<?php echo $order['OrderID']; ?></div>

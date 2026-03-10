@@ -51,7 +51,7 @@ if ($role_id == 2) {
 
             // لو مش رافع لوجو، نعمله لوجو بالحروف الأولى من اسم الصيدلية بلون أخضر
 
-            $avatar_url = "https://ui-avatars.com/api/?name=" . urlencode($pharma_data['PharmacyName']) . "&background=6E8649&color=fff&bold=true";
+            $avatar_url = "https://ui-avatars.com/api/?name=" . urlencode($pharma_data['PharmacyName']) . "&background=0A7A48&color=fff&bold=true";
         }
     }
 }
@@ -112,7 +112,7 @@ if ($role_id == 2) {
 
         <!-- 💡 ألوان ديناميكية حسب الدور -->
 
-        <button id="theme-toggle" type="button" class="bg-white dark:bg-slate-800 p-2.5 rounded-xl shadow-md border border-gray-100 dark:border-slate-700 hover:scale-105 transition-transform flex items-center justify-center <?php echo ($role_id == 1) ? 'hover:border-[#048AC1] dark:hover:border-[#048AC1]' : 'hover:border-[#6E8649] dark:hover:border-[#6E8649]'; ?>">
+        <button id="theme-toggle" type="button" class="bg-white dark:bg-slate-800 p-2.5 rounded-xl shadow-md border border-gray-100 dark:border-slate-700 hover:scale-105 transition-transform flex items-center justify-center <?php echo ($role_id == 1) ? 'hover:border-[#048AC1] dark:hover:border-[#048AC1]' : 'hover:border-[#0A7A48] dark:hover:border-[#0A7A48]'; ?>">
 
             <i id="theme-toggle-light-icon" data-lucide="sun" class="hidden w-5 h-5 text-yellow-500"></i>
 
@@ -132,7 +132,7 @@ if ($role_id == 2) {
 
         <a href="?lang=<?php echo $lang['switch_lang_code']; ?>"
 
-            class="bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-bold px-4 py-2.5 rounded-xl shadow-md border border-gray-100 dark:border-slate-700 hover:scale-105 transition-transform flex items-center gap-2 text-sm <?php echo ($role_id == 1) ? 'hover:text-[#048AC1] hover:border-[#048AC1] dark:hover:text-[#048AC1] dark:hover:border-[#048AC1]' : 'hover:text-[#6E8649] hover:border-[#6E8649] dark:hover:text-[#6E8649] dark:hover:border-[#6E8649]'; ?>">
+            class="bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-bold px-4 py-2.5 rounded-xl shadow-md border border-gray-100 dark:border-slate-700 hover:scale-105 transition-transform flex items-center gap-2 text-sm <?php echo ($role_id == 1) ? 'hover:text-[#048AC1] hover:border-[#048AC1] dark:hover:text-[#048AC1] dark:hover:border-[#048AC1]' : 'hover:text-[#0A7A48] hover:border-[#0A7A48] dark:hover:text-[#0A7A48] dark:hover:border-[#0A7A48]'; ?>">
 
             <i data-lucide="globe" class="w-4 h-4"></i>
 

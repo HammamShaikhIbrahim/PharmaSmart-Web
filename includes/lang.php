@@ -122,7 +122,7 @@ if ($current_lang == 'ar') {
 
     // صفحة الأدوية والمخزون
     $lang['product_inventory'] = "مخزون الأدوية";
-    $lang['add_product'] = "إضافة دواء +";
+    $lang['add_product'] = "إضافة دواء";
     $lang['search_product'] = "ابحث عن دواء بالاسم...";
     $lang['product'] = "المنتج";
     $lang['category'] = "التصنيف";
@@ -130,7 +130,7 @@ if ($current_lang == 'ar') {
     $lang['price'] = "سعر البيع";
     $lang['cost'] = "التكلفة";
     $lang['margin'] = "الربح";
-    $lang['expiry'] = "الانتهاء";
+    $lang['expiry'] = "تاريخ الانتهاء";
     $lang['add_new_product'] = "إضافة دواء جديد";
     $lang['edit_product'] = "تعديل بيانات الدواء";
     $lang['product_name'] = "اسم الدواء";
@@ -142,6 +142,44 @@ if ($current_lang == 'ar') {
     $lang['confirm'] = "تأكيد";
     $lang['uncategorized'] = "غير مصنف";
     $lang['select_category'] = "اختر تصنيفاً...";
+    $lang['controlled_description'] = "هذا دواء مراقب ويتطلب وصفة طبية.";
+    $lang['no_medicines'] = "لا يوجد أدوية في المخزون حالياً";
+    $lang['no_medicines_description'] = "ابدأ بإضافة أول دواء لمخزونك عبر الزر بالأعلى لتتمكن من استقبال الطلبات.";
+    $lang['select_image'] = "اختر صورة";
+    $lang['file_selected'] = "تم اختيار الملف:";
+    $lang['select_file'] = "اختر ملف";
+
+    // إضافة: صفحة إدارة الطلبات (Orders Page)
+    // -----------------------------------------
+    $lang['manage_orders'] = "إدارة الطلبات";
+    $lang['filter_processing'] = "قيد التجهيز";
+    $lang['filter_delivered'] = "مكتملة";
+    $lang['status_pending'] = "بانتظار الموافقة";
+    $lang['status_processing'] = "قيد التجهيز والتوصيل";
+    $lang['status_delivered'] = "تم التسليم";
+    $lang['status_rejected'] = "مرفوض";
+    $lang['order_number'] = "رقم الطلب";
+    $lang['rx_alert'] = "يحتوي على أدوية مراقبة (يستلزم مراجعة الوصفة)";
+    $lang['details_btn'] = "التفاصيل";
+    $lang['delivered_btn'] = "تم التوصيل";
+    $lang['no_orders'] = "لا توجد طلبات";
+    $lang['no_orders_desc'] = "لم يتم العثور على أي طلبات مطابقة للفلتر الحالي.";
+
+    // نافذة تفاصيل الطلب (Modal)
+    $lang['order_details'] = "تفاصيل الطلب";
+    $lang['customer_info'] = "بيانات العميل";
+    $lang['payment_summary'] = "ملخص الدفع";
+    $lang['total_required'] = "الإجمالي المطلوب";
+    $lang['cod'] = "الدفع عند الاستلام (COD)";
+    $lang['requested_items'] = "المنتجات المطلوبة";
+    $lang['qty'] = "الكمية";
+    $lang['item_total'] = "الإجمالي";
+    $lang['attached_rx'] = "الوصفة الطبية المرفقة (مطلوبة)";
+    $lang['rx_protocol'] = "بناءً على بروتوكول وزارة الصحة، يرجى التحقق مما يلي قبل قبول الطلب:";
+    $lang['rx_verify_check'] = "لقد قمت بمراجعة الوصفة الطبية وأتحمل المسؤولية المهنية.";
+    $lang['close'] = "إغلاق";
+    $lang['accept_prepare'] = "قبول وتجهيز";
+    $lang['confirm_delivery'] = "تأكيد التسليم";
 } else {
 
     // Login Page
@@ -260,7 +298,7 @@ if ($current_lang == 'ar') {
 
     // Medicines & Stock Page
     $lang['product_inventory'] = "Product Inventory";
-    $lang['add_product'] = "Add Product +";
+    $lang['add_product'] = "Add Product";
     $lang['search_product'] = "Search products by name...";
     $lang['product'] = "Product";
     $lang['category'] = "Category";
@@ -268,7 +306,7 @@ if ($current_lang == 'ar') {
     $lang['price'] = "Price";
     $lang['cost'] = "Cost";
     $lang['margin'] = "Margin";
-    $lang['expiry'] = "Expiry";
+    $lang['expiry'] = "Expiry Date";
     $lang['add_new_product'] = "Add New Product";
     $lang['edit_product'] = "Edit Product";
     $lang['product_name'] = "Product Name";
@@ -280,4 +318,43 @@ if ($current_lang == 'ar') {
     $lang['confirm'] = "Confirm";
     $lang['uncategorized'] = "Uncategorized";
     $lang['select_category'] = "Select a category...";
+    $lang['controlled_description'] = "This is a controlled medicine and requires a prescription.";
+    $lang['no_medicines'] = "No medicines in stock currently";
+    $lang['no_medicines_description'] = "Start by adding your first medicine to your inventory using the button above to start receiving orders.";
+    $lang['select_image'] = "Select Image";
+    $lang['file_selected'] = "File selected:";
+    $lang['select_file'] = "Select File";
+
+    // -----------------------------------------
+    // إضافة: صفحة إدارة الطلبات (Orders Page)
+    // -----------------------------------------
+    $lang['manage_orders'] = "Orders Management";
+    $lang['filter_processing'] = "Processing";
+    $lang['filter_delivered'] = "Delivered";
+    $lang['status_pending'] = "Awaiting Approval";
+    $lang['status_processing'] = "Processing & Delivery";
+    $lang['status_delivered'] = "Delivered";
+    $lang['status_rejected'] = "Rejected";
+    $lang['order_number'] = "Order ID";
+    $lang['rx_alert'] = "Contains Controlled Meds (Rx Review Required)";
+    $lang['details_btn'] = "Details";
+    $lang['delivered_btn'] = "Delivered";
+    $lang['no_orders'] = "No Orders Found";
+    $lang['no_orders_desc'] = "No orders match the current filter criteria.";
+
+    // Order Details Modal
+    $lang['order_details'] = "Order Details";
+    $lang['customer_info'] = "Customer Info";
+    $lang['payment_summary'] = "Payment Summary";
+    $lang['total_required'] = "Total Required";
+    $lang['cod'] = "Cash on Delivery (COD)";
+    $lang['requested_items'] = "Requested Items";
+    $lang['qty'] = "Qty";
+    $lang['item_total'] = "Total";
+    $lang['attached_rx'] = "Attached Prescription (Required)";
+    $lang['rx_protocol'] = "Based on health protocols, please verify the following before accepting:";
+    $lang['rx_verify_check'] = "I have reviewed the prescription and assume professional responsibility.";
+    $lang['close'] = "Close";
+    $lang['accept_prepare'] = "Accept & Prepare";
+    $lang['confirm_delivery'] = "Confirm Delivery";
 }
