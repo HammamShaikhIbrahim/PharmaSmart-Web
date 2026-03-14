@@ -33,7 +33,7 @@ if (isset($_GET['action']) && isset($_GET['order_id'])) {
 }
 
 // ==========================================
-// 3. جلب بيانات الطلبات - لا تغيير هنا
+// 3. جلب بيانات الطلبات -    
 // ==========================================
 $filter_status = isset($_GET['status']) ? mysqli_real_escape_string($conn, $_GET['status']) : 'All';
 $status_condition = ($filter_status !== 'All') ? "AND o.Status = '$filter_status'" : "";
@@ -73,6 +73,91 @@ include('../includes/sidebar.php');
 ?>
 
 <style>
+
+
+
+/* ================================================== */
+/* == تعديل: إضافة تصميم أزرار الفلتر الزجاجية == */
+/* ================================================== */
+.glass-radio-group {
+  display: flex;
+  position: relative;
+  border-radius: 9999px; /* rounded-full */
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  width: fit-content;
+  padding: 0.375rem; /* p-1.5 */
+}
+
+/* الوضع الفاتح */
+.light .glass-radio-group {
+  background: rgba(255, 255, 255, 0.7); /* أبيض شفاف */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); /* shadow-md */
+}
+
+/* الوضع الداكن */
+.dark .glass-radio-group {
+  background: rgba(41, 56, 81, 0.5); /* أزرق داكن شفاف */
+  box-shadow: inset 0 2px 4px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* هذا هو الرابط/الزر نفسه */
+.glass-radio-group a {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem; /* text-sm */
+  padding: 0.625rem 1.75rem; /* px-7 py-2.5 */
+  cursor: pointer;
+  font-weight: 900; /* font-black */
+  position: relative;
+  z-index: 2;
+  transition: color 0.4s ease-in-out;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.light .glass-radio-group a { color: #64748b; } /* slate-500 */
+.dark .glass-radio-group a { color: #94a3b8; } /* slate-400 */
+
+.light .glass-radio-group a.active-glider-item,
+.light .glass-radio-group a:hover { color: #0f172a; } /* slate-900 */
+
+.dark .glass-radio-group a.active-glider-item,
+.dark .glass-radio-group a:hover { color: #ffffff; }
+
+/* هذا هو الجزء المتحرك (الـ Glider) */
+.glass-glider {
+  position: absolute;
+  top: 0.375rem;
+  bottom: 0.375rem;
+  z-index: 1;
+  transition: transform 0.5s cubic-bezier(0.45, 0, 0.09, 1);
+  border-radius: 9999px;
+}
+
+.light .glass-glider {
+  background: white;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); /* shadow */
+}
+
+.dark .glass-glider {
+  background-color: #334155; /* slate-700 */
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
     .table-container {
         border-radius: 1.5rem;
         overflow: hidden;
@@ -88,39 +173,10 @@ include('../includes/sidebar.php');
         border: 1px solid #e2e8f0; /* slate-200 */
     }
 
-    /* إشعار المعلومات (Tooltip) */
-    #orderTooltip {
-        position: fixed;
-        display: none;
-        padding: 0.75rem 1rem;
-        background-color: #0f172a; /* لون داكن جداً */
-        color: #000000;
-        border: 1px solid #334155;
-        border-radius: 0.75rem;
-        font-size: 0.8rem;
-        z-index: 101;
-        pointer-events: none;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.4);
-        backdrop-filter: blur(5px);
-        transition: opacity 0.2s;
-    }
-    #orderTooltip h4 {
-        font-weight: 800;
-        color: #fff;
-        margin-bottom: 0.5rem;
-    }
-    #orderTooltip p {
-        margin: 0.25rem 0;
-        color: #94a3b8;
-    }
-    #orderTooltip p span {
-        font-weight: 600;
-        color: #cbd5e1;
-    }
+
 </style>
 
-<main class="flex-1 p-4 md:p-8 bg-gray-50/50 dark:bg-[#0B1120] h-full overflow-y-auto transition-colors duration-300 relative">
-
+<main class="flex-1 p-4 md:p-8 bg-emerald-50 dark:bg-[#0B1120] h-full overflow-y-auto transition-colors duration-300 relative">
     <?php include('../includes/topbar.php'); ?>
 
     <!-- ترويسة الصفحة والفلاتر - لا تغيير هنا -->
@@ -134,39 +190,49 @@ include('../includes/sidebar.php');
                 <p class="text-sm text-gray-500 font-bold">تابع وقم بمعالجة طلبات عملائك بدقة.</p>
             </div>
         </div>
-        <div class="bg-white dark:bg-slate-800 p-1.5 rounded-full shadow-sm border border-gray-200 dark:border-slate-700 flex items-center overflow-x-auto">
-             <?php 
-                $filter_tabs = [
-                    ['All', $lang['filter_all'], 'hover:text-white active:text-white'],
-                    ['Pending', $lang['filter_pending'], 'hover:text-amber-500 active:text-amber-500'],
-                    ['Accepted', $lang['filter_processing'], 'hover:text-blue-500 active:text-blue-500'],
-                    ['Delivered', $lang['filter_delivered'], 'hover:text-emerald-500 active:text-emerald-500'],
-                    ['Rejected', 'مرفوضة', 'hover:text-rose-500 active:text-rose-500']
-                ];
-                foreach ($filter_tabs as $tab) {
-                    $isActive = ($filter_status === $tab[0]);
-                    $baseClass = "px-7 py-2.5 rounded-full text-sm font-black transition-all duration-300 whitespace-nowrap ";
-                    if ($isActive) {
-                        $activeColor = str_replace(['hover:', 'active:'], ['', ''], $tab[2]);
-                        $stateClass = "bg-gray-50 dark:bg-slate-700 shadow-inner ring-1 ring-gray-100 dark:ring-slate-600 $activeColor";
-                    } else {
-                        $stateClass = "text-gray-400 " . $tab[2];
-                    }
-                    echo "<a href='?status={$tab[0]}' class='$baseClass $stateClass'>{$tab[1]}</a>";
-                }
-            ?>
-        </div>
+       <!-- ============================================= -->
+<!-- == تعديل: تطبيق تصميم الفلاتر الزجاجية == -->
+<!-- ============================================= -->
+<div class="glass-radio-group">
+    <?php 
+        $filter_tabs = [
+            ['All', $lang['filter_all']],
+            ['Pending', $lang['filter_pending']],
+            ['Accepted', $lang['filter_processing']],
+            ['Delivered', $lang['filter_delivered']],
+            ['Rejected', 'مرفوضة']
+        ];
+        
+        $total_tabs = count($filter_tabs);
+        $activeIndex = 0; // القيمة الافتراضية للفلتر "الكل"
+
+        foreach ($filter_tabs as $index => $tab) {
+            // تحقق من هو الفلتر النشط حالياً
+            $isActive = ($filter_status === $tab[0]);
+            if ($isActive) {
+                $activeIndex = $index; // قم بتحديث مؤشر الفلتر النشط
+            }
+            // أضف كلاس "active-glider-item" للرابط النشط لتغيير لون النص
+            $active_class = $isActive ? ' active-glider-item' : '';
+            echo "<a href='?status={$tab[0]}' class='$active_class'>{$tab[1]}</a>";
+        }
+    ?>
+    <!-- هذا هو العنصر المتحرك الذي سيتحرك خلف الزر النشط -->
+    <!-- يتم حساب عرضه وموقعه ديناميكياً باستخدام PHP -->
+    <div class="glass-glider" style="
+        width: calc(100% / <?php echo $total_tabs; ?>); 
+        transform: translateX(<?php echo $activeIndex * 100; ?>%); "></div>
+</div>
     </div>
 
     <!-- جدول الطلبات -->
-    <div class="table-container">
-        <table class="w-full text-sm text-right text-slate-300">
+<div class="table-container bg-white dark:bg-[#1e293b]">        <table class="w-full text-sm text-right text-slate-300">
        <!-- ==  جعل رأس الجدول متكيفاً(Responsive) == -->
         <!-- ============================================= -->
         <thead class="text-xs text-gray-500 dark:text-slate-400 uppercase bg-gray-50 dark:bg-slate-900/50">
             <tr>
                 <th scope="col" class="px-6 py-4 font-black">رقم الطلب</th>
-                <th scope="col" class="px-6 py-4 font-black">العميل</th>
+                <th scope="col" class="px-6 py-4 font-black">المريض</th>
                 <th scope="col" class="px-6 py-4 font-black">تاريخ الطلب</th>
                 <th scope="col" class="px-6 py-4 font-black">الحالة</th>
                 <th scope="col" class="px-6 py-4 font-black">الإجمالي</th>
@@ -208,8 +274,6 @@ include('../includes/sidebar.php');
                     <!-- 2. تأثير التأشير: `hover:bg-slate-900/90` يقوم بتغيير لون الخلفية عند التمرير. -->
                     <!-- 3. إشعار المعلومات: تم إضافة `onmousemove` و `onmouseout` لاستدعاء دوال الإشعار. -->
       <tr class="border-b border-slate-700/50 hover:bg-slate-800 hover:ring-1 hover:ring-slate-100 transition-all duration-200 cursor-pointer"
-    onmousemove="showTooltip(event, '<?php echo $order_json; ?>')" 
-    onmouseout="hideTooltip()">
                     
                     <!-- رقم الطلب -->
                     <td onclick="viewOrderDetails('<?php echo $order_json; ?>')" class="px-6 py-5 font-mono font-bold text-gray-00 dark:text-white">#ORD-<?php echo $order['OrderID']; ?></td>
