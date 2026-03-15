@@ -231,6 +231,11 @@ if ($current_lang == 'ar') {
     $lang['close'] = "إغلاق";
     $lang['total_required'] = "المطلوب دفعه";
     $lang['no_orders_desc'] = "لا يوجد طلبات حالياً";
+
+    $lang['delivery_location'] = "موقع التوصيل (الخريطة)";
+$lang['verify_rx_btn'] = "اعتماد الوصفة";
+$lang['reject_rx_btn'] = "رفض الوصفة";
+$lang['no_location_provided'] = "لم يقم المريض بتحديد موقعه على الخريطة";
 } else {
 
     // Login Page
@@ -459,4 +464,9 @@ if ($current_lang == 'ar') {
     $lang['close'] = "Close";
     $lang['total_required'] = "Total Required";
     $lang['no_orders_desc'] = "No orders available right now";
+    $lang['delivery_location'] = "Delivery Location (Map)";
+$lang['verify_rx_btn'] = "Approve Rx";
+$lang['reject_rx_btn'] = "Reject Rx";
+$lang['no_location_provided'] = "Patient did not provide a map location";
+    
 }

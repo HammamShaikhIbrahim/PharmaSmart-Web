@@ -75,25 +75,35 @@ if ($dir == 'rtl') {
 
 <style>
 /* =========================================
-   تصميم فلتر الخريطة الجديد (Dark Pill Design)
-   متطابق مع الصورة المرفقة تماماً
+   تصميم فلتر الخريطة (Pill Design)
+   يدعم Light Mode & Dark Mode بامتياز 🌓
    ========================================= */
+
+/* 1. الحاوية الأساسية (الوضع النهاري افتراضياً) */
 .glass-radio-group {
     display: flex;
     position: relative;
-    /* خلفية داكنة ثابتة (كحلي غامق يميل للأسود) */
-    background-color: #0f172a; 
+    background-color: #ffffff; /* أبيض للنهاري */
     border-radius: 1rem;
-    padding: 4px; /* مساحة داخلية عشان الزر ما يلمس الحواف */
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 4px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.05); /* ظل خفيف */
     width: fit-content;
-    border: 1px solid #1e293b;
+    border: 1px solid #e2e8f0; /* رمادي فاتح للحدود */
+    transition: all 0.3s ease;
+}
+
+/* الحاوية في الوضع الليلي (Dark Mode) */
+.dark .glass-radio-group {
+    background-color: #0f172a; /* كحلي داكن */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #1e293b;
 }
 
 .glass-radio-group input {
     display: none;
 }
 
+/* 2. النصوص (الوضع النهاري افتراضياً) */
 .glass-radio-group label {
     flex: 1;
     display: flex;
@@ -108,54 +118,57 @@ if ($dir == 'rtl') {
     z-index: 2;
     transition: all 0.3s ease-in-out;
     border-radius: 0.8rem;
+    color: #64748b; /* لون رمادي مريح للعين في النهاري */
 }
 
-/* 🎨 تلوين النصوص في الحالة العادية (غير المحددة) بناءً على الصورة */
-label[for="filter-all"] { color: #94a3b8; } /* رمادي فاتح */
-label[for="filter-active"] { color: #10b981; } /* أخضر (نشط) */
-label[for="filter-pending"] { color: #f59e0b; } /* برتقالي (معلق) */
+/* النصوص في الوضع الليلي */
+.dark .glass-radio-group label {
+    color: #94a3b8; /* رمادي فاتح لليلي */
+}
 
-/* 🎨 تلوين النصوص عند التأشير (Hover) */
-label[for="filter-all"]:hover { color: #ffffff; }
-label[for="filter-active"]:hover { color: #34d399; text-shadow: 0 0 8px rgba(16,185,129,0.5); }
-label[for="filter-pending"]:hover { color: #fbbf24; text-shadow: 0 0 8px rgba(245,158,11,0.5); }
+/* 🎨 تلوين النصوص عند التأشير (Hover) للوضعين */
+label[for="filter-all"]:hover { color: #048AC1; } /* أزرق */
+label[for="filter-active"]:hover { color: #10b981; } /* أخضر */
+label[for="filter-pending"]:hover { color: #f59e0b; } /* برتقالي */
 
-/* ⚪️ النص المختار دائماً أبيض */
+/* إضافة توهج للنصوص عند الهوفر في الوضع الليلي فقط */
+.dark label[for="filter-active"]:hover { text-shadow: 0 0 8px rgba(16,185,129,0.5); }
+.dark label[for="filter-pending"]:hover { text-shadow: 0 0 8px rgba(245,158,11,0.5); }
+
+/* ⚪️ النص المختار دائماً أبيض في كلا الوضعين */
 .glass-radio-group input:checked + label {
     color: #ffffff !important;
     text-shadow: none !important;
 }
 
-/* المزلاج (الخلفية الملونة التي تتحرك) */
+/* 3. المزلاج (الخلفية الملونة التي تتحرك) */
 .glass-glider {
     position: absolute;
     top: 4px;
     bottom: 4px;
-    width: calc((100% - 8px) / 3); /* عرض الثلث ناقص مساحة البادينج */
+    width: calc((100% - 8px) / 3);
     border-radius: 0.7rem;
     z-index: 1;
-    transition: transform 0.4s cubic-bezier(0.37, 1.95, 0.66, 0.56), background 0.4s ease;
+    transition: transform 0.4s cubic-bezier(0.37, 1.95, 0.66, 0.56), background 0.4s ease, box-shadow 0.4s ease;
 }
 
-/* 1. فلتر الكل (أزرق الإدمن) */
+/* ألوان المزلاج والظلال */
 #filter-all:checked ~ .glass-glider {
     transform: translateX(0%);
     background: #048AC1;
-    box-shadow: 0 2px 8px rgba(4, 138, 193, 0.5);
+    box-shadow: 0 4px 10px rgba(4, 138, 193, 0.3);
 }
 
-/* 2. فلتر النشط (أخضر الصيدليات) */
 #filter-active:checked ~ .glass-glider {
     transform: translateX(100%);
     background: #10b981;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
 }
 
-/* 3. فلتر المعلق (برتقالي التنبيه) */
 #filter-pending:checked ~ .glass-glider {
     transform: translateX(200%);
     background: #f59e0b;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5);
+    box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
 }
 
 /* 💡 دعم اللغة العربية RTL - عكس اتجاه حركة المزلاج */
