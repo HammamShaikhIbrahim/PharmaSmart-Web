@@ -1,301 +1,388 @@
 <?php
-
 // ==========================================
 // 1. الإعدادات الأساسية والحماية
 // ==========================================
-include('../config/database.php'); // الاتصال بقاعدة البيانات
-session_start(); // تشغيل الجلسة
+include('../config/database.php');
+session_start();
 
-// حماية الصفحة: إذا مش مسجل دخول أو مش أدمن (RoleID=1)، اطرده لصفحة الدخول
+// حماية الصفحة
 if (!isset($_SESSION['user_id']) || $_SESSION['role_id'] != 1) {
     header("Location: ../auth/login.php");
     exit();
 }
 
+// استدعاء ملف اللغة (ضروري جداً قبل أي عمليات)
+require_once('../includes/lang.php');
+
 // ==========================================
-// 2. معالجة الإجراءات (Actions: قبول، رفض، تعليق، حذف)
+// 2. معالجة الإجراءات (Actions)
 // ==========================================
-// بنفحص إذا الرابط فيه كلمة action و id (مثال: pharmacies.php?action=approve&id=5)
 if (isset($_GET['action']) && isset($_GET['id'])) {
-
-    // intval: بتحول الـ ID لرقم صحيح بس (حماية ممتازة عشان ما حد يبعت نصوص خبيثة بالرابط)
     $id = intval($_GET['id']);
-
-    // قبول: بنعدل حالة الصيدلية لـ 1 (مفعل)
     if ($_GET['action'] == 'approve') {
         mysqli_query($conn, "UPDATE Pharmacist SET IsApproved = 1 WHERE PharmacistID = $id");
-    }
-    // تعليق (توقيف مؤقت): بنرجع حالة الصيدلية لـ 0 (معلق)
-    elseif ($_GET['action'] == 'suspend') {
+    } elseif ($_GET['action'] == 'suspend') {
         mysqli_query($conn, "UPDATE Pharmacist SET IsApproved = 0 WHERE PharmacistID = $id");
-    }
-    // حذف نهائي أو رفض الطلب من البداية
-    elseif ($_GET['action'] == 'delete' || $_GET['action'] == 'reject') {
-        // 💡 الحل هنا: نحذف جميع رسائل الصيدلية أولاً لمنع تعارض قاعدة البيانات
+    } elseif ($_GET['action'] == 'delete' || $_GET['action'] == 'reject') {
         mysqli_query($conn, "DELETE FROM Chat WHERE SenderID = $id OR ReceiverID = $id");
-        // ثم نحذف المستخدم (الصيدلية) بأمان
         mysqli_query($conn, "DELETE FROM User WHERE UserID = $id");
     }
-
-    // بعد ما نخلص الأكشن، بنعمل تحديث (Refresh) للصفحة عشان الجدول يتحدث وتختفي المتغيرات من الرابط
     header("Location: pharmacies.php");
     exit();
 }
 
 // ==========================================
-// 3. نظام البحث المخصص وجلب البيانات
+// 3. منطق جلب البيانات (لدعم AJAX والتحميل الأولي)
 // ==========================================
 $search = mysqli_real_escape_string($conn, $_GET['search'] ?? '');
+// الفلتر الافتراضي هو "all"
+$status_filter = $_GET['status'] ?? 'all';
 
-// 💡 أضفنا u.Email في السطر الأول من الاستعلام ليتم جلبه من الداتابيز
+// بناء شرط الحالة
+$status_condition = "";
+if ($status_filter == 'active') {
+    $status_condition = "AND p.IsApproved = 1";
+} elseif ($status_filter == 'pending') {
+    $status_condition = "AND p.IsApproved = 0";
+}
+
 $query = "SELECT u.UserID, u.Fname, u.Lname, u.Phone, u.Email, u.CreatedAt, p.*
           FROM User u
           JOIN Pharmacist p ON u.UserID = p.PharmacistID
-          WHERE p.PharmacyName LIKE '%$search%' OR u.Fname LIKE '%$search%'
-          ORDER BY p.IsApproved ASC";
+          WHERE (p.PharmacyName LIKE '%$search%' OR u.Fname LIKE '%$search%') 
+          $status_condition
+          ORDER BY p.IsApproved ASC, u.CreatedAt DESC";
 
 $result = mysqli_query($conn, $query);
 
-// استدعاء ملفات التصميم
+// 🚀 معالجة طلب AJAX 
+if (isset($_GET['ajax'])) {
+    ob_start();
+    if (mysqli_num_rows($result) > 0) {
+        while ($row = mysqli_fetch_assoc($result)) { ?>
+            <tr class="hover:bg-blue-50 dark:hover:bg-[#011C3B]/50 transition-colors duration-200 group cursor-pointer border-b border-transparent hover:border-gray-100 dark:hover:border-slate-700">
+                <td class="p-6">
+                    <div class="flex items-center gap-3">
+                        <img src="../uploads/<?php echo $row['Logo'] ? $row['Logo'] : 'default.png'; ?>" class="w-12 h-12 rounded-xl border border-gray-200 dark:border-slate-600 object-cover shadow-sm bg-white">
+                        <span class="font-bold text-gray-800 dark:text-white"><?php echo htmlspecialchars($row['PharmacyName']); ?></span>
+                    </div>
+                </td>
+                <td class="p-6 text-sm text-gray-600 dark:text-gray-300 font-medium"><?php echo htmlspecialchars($row['Fname'] . ' ' . $row['Lname']); ?></td>
+                <td class="p-6 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                    <div class="flex items-center gap-2 mb-1"><i data-lucide="mail" class="w-4 h-4 text-[#048AC1]"></i><span><?php echo htmlspecialchars($row['Email']); ?></span></div>
+                    <div class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4 text-[#048AC1]"></i><span dir="ltr"><?php echo htmlspecialchars($row['Phone']); ?></span></div>
+                </td>
+                <td class="p-6 text-sm text-gray-600 dark:text-gray-300">
+                    <div class="flex items-center gap-2 mb-1"><i data-lucide="map-pin" class="w-4 h-4 text-[#048AC1]"></i><span><?php echo htmlspecialchars($row['Location']); ?></span></div>
+                    <div class="flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4 text-[#048AC1]"></i><span><?php echo htmlspecialchars($row['WorkingHours']); ?></span></div>
+                </td>
+                <td class="p-6 text-center">
+                    <?php if ($row['IsApproved'] == 0): ?>
+                        <span class="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800 px-4 py-1.5 rounded-full text-xs font-bold min-w-[80px] inline-block shadow-sm">
+                            <?php echo isset($lang['pending']) ? $lang['pending'] : 'معلق'; ?>
+                        </span>
+                    <?php else: ?>
+                        <span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-4 py-1.5 rounded-full text-xs font-bold min-w-[80px] inline-block shadow-sm">
+                            <?php echo isset($lang['active']) ? $lang['active'] : 'نشط'; ?>
+                        </span>
+                    <?php endif; ?>
+                </td>
+                <td class="p-6 text-center">
+                    <div class="flex justify-center items-center gap-1">
+                        <?php if ($row['IsApproved'] == 0): ?>
+                            <a href="pharmacies.php?action=approve&id=<?php echo $row['PharmacistID']; ?>" class="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors" title="قبول وتفعيل"><i data-lucide="check-circle-2" class="w-5 h-5"></i></a>
+                            <button onclick="confirmAction(<?php echo $row['UserID']; ?>, 'reject')" class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors" title="رفض الطلب">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        <?php else: ?>
+                            <button onclick="confirmAction(<?php echo $row['PharmacistID']; ?>, 'suspend')" class="p-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-colors" title="إيقاف مؤقت"><i data-lucide="pause-circle" class="w-5 h-5"></i></button>
+                            <button onclick="confirmAction(<?php echo $row['UserID']; ?>, 'delete')" class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors" title="حذف نهائي">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </td>
+            </tr>
+        <?php }
+    } else { ?>
+        <tr>
+            <td colspan="6" class="p-20">
+                <!-- 🚀 Empty State متحرك مستوحى من Uiverse (بالثيم الأزرق للأدمن) -->
+                <div class="flex flex-col items-center justify-center text-center">
+                    <div class="relative w-24 h-24 mb-6">
+                        <!-- دائرة تنبض في الخلفية -->
+                        <div class="absolute inset-0 bg-[#048AC1] rounded-full opacity-20 animate-ping"></div>
+                        <!-- الأيقونة في المقدمة -->
+                        <div class="relative flex items-center justify-center w-full h-full bg-blue-50 dark:bg-blue-900/40 rounded-full shadow-inner border border-blue-100 dark:border-blue-800/50">
+                            <i data-lucide="search-x" class="w-10 h-10 text-[#048AC1]"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-lg font-black text-gray-800 dark:text-white mb-2">لا توجد صيدليات مطابقة</h3>
+                    <p class="text-sm font-bold text-gray-500 dark:text-gray-400">حاول تغيير كلمة البحث أو اختيار فلتر آخر.</p>
+                </div>
+            </td>
+        </tr>
+<?php }
+    $content = ob_get_clean();
+    header('Content-Type: application/json');
+    echo json_encode(['html' => $content, 'has_data' => mysqli_num_rows($result) > 0]);
+    exit();
+}
+
 include('../includes/header.php');
 include('../includes/sidebar.php');
 ?>
 
 <style>
-    /* ==========================================
-       CSS الخاص بأزرار Uiverse (سلة الحذف المتحركة)
-    ========================================== */
+    /* =========================================
+       الفلتر الزجاجي بـ 3 خيارات
+       ========================================= */
+    .glass-radio-group {
+        display: flex;
+        position: relative;
+        background-color: #ffffff;
+        border-radius: 1rem;
+        padding: 4px;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.05);
+        width: fit-content;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+    }
 
-    /* 1. زر الحذف (سلة المهملات التي تفتح) */
-    .bin-button {
+    .dark .glass-radio-group {
+        background-color: #0f172a;
+        border-color: #1e293b;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .glass-radio-group input {
+        display: none;
+    }
+
+    .glass-radio-group label {
+        flex: 1 1 0%;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        background-color: transparent;
-        border: none;
+        min-width: 100px;
+        font-size: 14px;
+        padding: 0.6rem 1.2rem;
         cursor: pointer;
-        transition: all 0.3s ease;
+        font-weight: 800;
+        position: relative;
+        z-index: 2;
+        transition: all 0.3s ease-in-out;
+        border-radius: 0.8rem;
+        color: #64748b;
+        white-space: nowrap;
     }
 
-    .bin-button:hover {
-        background-color: rgba(225, 29, 72, 0.1); /* لون أحمر خفيف للهوفر */
+    .dark .glass-radio-group label {
+        color: #94a3b8;
     }
 
-    .dark .bin-button:hover {
-        background-color: rgba(225, 29, 72, 0.3);
+    label[for="filter-all"]:hover {
+        color: #048AC1;
     }
 
-    .bin-bottom {
-        transform-origin: bottom center;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    label[for="filter-active"]:hover {
+        color: #10b981;
     }
 
-    .bin-top {
-        transform-origin: bottom right;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    label[for="filter-pending"]:hover {
+        color: #f59e0b;
     }
 
-    .bin-button:hover .bin-top {
-        transform: rotate(20deg) translateY(-2px);
+    .glass-radio-group input:checked+label {
+        color: #ffffff !important;
+        text-shadow: none !important;
     }
 
-    /* 2. توحيد حجم الأزرار الأخرى (قبول/تعليق) لتتناسق مع السلة */
-    .action-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        background-color: transparent;
-        transition: all 0.3s ease;
+    .glass-glider {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        width: calc((100% - 8px) / 3);
+        border-radius: 0.7rem;
+        z-index: 1;
+        transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    #filter-all:checked~.glass-glider {
+        transform: translateX(0%);
+        background: #048AC1;
+        box-shadow: 0 4px 10px rgba(4, 138, 193, 0.3);
+    }
+
+    #filter-active:checked~.glass-glider {
+        transform: translateX(100%);
+        background: #10b981;
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    }
+
+    #filter-pending:checked~.glass-glider {
+        transform: translateX(200%);
+        background: #f59e0b;
+        box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+    }
+
+    html[dir="rtl"] #filter-active:checked~.glass-glider {
+        transform: translateX(-100%);
+    }
+
+    html[dir="rtl"] #filter-pending:checked~.glass-glider {
+        transform: translateX(-200%);
     }
 </style>
 
-<!-- ==========================================
-     تصميم الصفحة (الـ HTML و Tailwind)
-=========================================== -->
-<main class="flex-1 p-8 bg-blue-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300">
-
+<main class="flex-1 p-8 bg-blue-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
     <?php include('../includes/topbar.php'); ?>
 
-    <div class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
-        <!-- 💡 أيقونة مستشفى بلون أزرق (#048AC1) -->
-        <h1 class="text-3xl font-black text-gray-800 dark:text-white flex items-center gap-3">
+    <div class="mb-8 flex flex-col xl:flex-row justify-between items-center gap-6">
+
+        <!-- عنوان الصفحة -->
+        <h1 class="text-3xl font-black text-gray-800 dark:text-white flex items-center gap-3 shrink-0 w-full xl:w-auto">
             <i data-lucide="hospital" class="text-[#048AC1]"></i> <?php echo $lang['pharmacies']; ?>
         </h1>
 
-        <!-- فورم البحث مع فوكس أزرق -->
-        <form method="GET" class="w-full md:w-96">
-            <div class="relative group">
-                <input type="text" name="search" placeholder="<?php echo $lang['search_pharmacy']; ?>" value="<?php echo htmlspecialchars($search); ?>"
-                    class="w-full p-3 rounded-2xl border border-gray-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-sm focus:ring-2 focus:ring-[#048AC1] focus:border-[#048AC1] outline-none transition-all">
-                <!-- 💡 تغيير لون الأيقونة عند التركيز -->
-                <i data-lucide="search" class="top-3.5 text-gray-400 group-focus-within:text-[#048AC1] transition-colors <?php echo ($dir == 'rtl') ? 'absolute left-3' : 'absolute right-3'; ?>"></i>
+        <!-- أدوات التحكم (الفلتر + البحث المباشر) -->
+        <div class="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto justify-end">
+
+
+            <!-- 🚀 البحث السريع (AJAX Live Search) -->
+            <div class="w-full md:w-80">
+                <div class="relative group">
+                    <!-- 💡 استدعاء دالة fetchTableData() عند كل حرف يكتب (oninput) للبحث المباشر الحي -->
+                    <input type="text" id="searchInput" oninput="fetchTableData()" placeholder="<?php echo $lang['search_pharmacy']; ?>" value="<?php echo htmlspecialchars($search); ?>"
+                        class="w-full p-3 rounded-2xl border border-gray-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-sm focus:ring-2 focus:ring-[#048AC1] outline-none transition-all text-sm">
+                    <i data-lucide="search" class="top-3.5 text-gray-400 group-focus-within:text-[#048AC1] transition-colors <?php echo ($dir == 'rtl') ? 'absolute left-4' : 'absolute right-4'; ?> w-5 h-5"></i>
+                </div>
             </div>
-        </form>
+            <!-- الفلتر الزجاجي -->
+            <div class="overflow-x-auto custom-scrollbar pb-2 -mb-2 w-full md:w-auto">
+                <div class="glass-radio-group shrink-0 mx-auto md:mx-0">
+                    <!-- 💡 يتم استدعاء دالة تحديث الجدول مع تغيير الحالة -->
+                    <input type="radio" name="status" id="filter-all" value="all" onchange="fetchTableData()" <?php echo ($status_filter == 'all') ? 'checked' : ''; ?> />
+                    <label for="filter-all"><?php echo isset($lang['filter_all']) ? $lang['filter_all'] : 'الكل'; ?></label>
+
+                    <input type="radio" name="status" id="filter-active" value="active" onchange="fetchTableData()" <?php echo ($status_filter == 'active') ? 'checked' : ''; ?> />
+                    <label for="filter-active"><?php echo $lang['active']; ?></label>
+
+                    <input type="radio" name="status" id="filter-pending" value="pending" onchange="fetchTableData()" <?php echo ($status_filter == 'pending') ? 'checked' : ''; ?> />
+                    <label for="filter-pending"><?php echo $lang['pending']; ?></label>
+
+                    <div class="glass-glider"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- 💡 تحسين الحواف والظلال بألوان موحدة -->
-    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 overflow-hidden transition-colors">
-        <table class="w-full border-collapse">
-            <thead class="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700 ">
-                <tr class="text-gray-600 dark:text-gray-400 text-sm <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
-                    <th class="p-6 font-bold"><?php echo $lang['pharmacy_name']; ?></th>
-                    <th class="p-6 font-bold"><?php echo $lang['owner']; ?></th>
-                    <th class="p-6 font-bold"><?php echo isset($lang['contact_info']) ? $lang['contact_info'] : 'الاتصال'; ?></th>
-                    <th class="p-6 font-bold"><?php echo $lang['location_work']; ?></th>
-                    <th class="p-6 font-bold text-center"><?php echo $lang['status']; ?></th>
-                    <th class="p-6 font-bold text-center"><?php echo $lang['actions']; ?></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
-                <?php while ($row = mysqli_fetch_assoc($result)) { ?>
-                    <!-- 💡 هوفر أزرق خفيف (#048AC1 مع opacity) -->
-                    <tr class="transition-all duration-300 hover:bg-blue-50 dark:hover:bg-blue-900/20">
-
-                        <!-- 1. اسم الصيدلية والشعار -->
-                        <td class="p-6">
-                            <div class="flex items-center gap-3">
-                                <img src="../uploads/<?php echo $row['Logo'] ? $row['Logo'] : 'default.png'; ?>" class="w-12 h-12 rounded-xl border border-gray-200 dark:border-slate-600 object-cover shadow-sm bg-white">
-                                <span class="font-bold text-gray-800 dark:text-white"><?php echo htmlspecialchars($row['PharmacyName']); ?></span>
-                            </div>
-                        </td>
-
-                        <!-- 2. اسم المالك (الاسم الأول + الأخير) -->
-                        <td class="p-6 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                            <?php echo htmlspecialchars($row['Fname'] . ' ' . $row['Lname']); ?>
-                        </td>
-
-                        <!-- 3. بيانات الاتصال (إيميل وتلفون) -->
-                        <td class="p-6 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                            <!-- 💡 توحيد الأيقونات بلون أزرق (#048AC1) -->
-                            <div class="flex items-center gap-2 mb-1">
-                                <i data-lucide="mail" class="w-4 h-4 text-[#048AC1]"></i>
-                                <span><?php echo htmlspecialchars($row['Email']); ?></span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <i data-lucide="phone" class="w-4 h-4 text-[#048AC1]"></i>
-                                <span dir="ltr"><?php echo htmlspecialchars($row['Phone']); ?></span>
-                            </div>
-                        </td>
-
-                        <!-- 4. الموقع وساعات العمل -->
-                        <td class="p-6 text-sm text-gray-600 dark:text-gray-300">
-                            <div class="flex items-center gap-2 mb-1">
-                                <i data-lucide="map-pin" class="w-4 h-4 text-[#048AC1]"></i>
-                                <span><?php echo htmlspecialchars($row['Location']); ?></span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <i data-lucide="clock" class="w-4 h-4 text-[#048AC1]"></i>
-                                <span><?php echo htmlspecialchars($row['WorkingHours']); ?></span>
-                            </div>
-                        </td>
-
-                        <!-- 5. حالة الصيدلية (مفعلة ولا معلقة) -->
-                        <td class="p-6 text-center">
-                            <?php if ($row['IsApproved'] == 0): ?>
-                                <!-- معلق: برتقالي -->
-                                <span class="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-4 py-1.5 rounded-full text-xs font-bold min-w-[80px] inline-block shadow-sm"><?php echo $lang['pending']; ?></span>
-                            <?php else: ?>
-                                <!-- مفعل: أخضر -->
-                                <span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-4 py-1.5 rounded-full text-xs font-bold min-w-[80px] inline-block shadow-sm"><?php echo $lang['active']; ?></span>
-                            <?php endif; ?>
-                        </td>
-
-                        <!-- 6. الإجراءات (أزرار التحكم) -->
-                        <td class="p-6 text-center">
-                            <div class="flex justify-center items-center gap-1">
-                                <?php if ($row['IsApproved'] == 0): ?>
-                                    <!-- زر القبول: أخضر -->
-                                    <a href="pharmacies.php?action=approve&id=<?php echo $row['PharmacistID']; ?>" class="action-btn text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30" title="Approve">
-                                        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
-                                    </a>
-                                    
-                                    <!-- 🚀 زر الرفض: سلة مهملات متحركة Uiverse -->
-                                    <button onclick="confirmAction(<?php echo $row['UserID']; ?>, 'reject')" class="bin-button text-rose-500" title="Reject">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
-                                            <path d="M3 6h18" class="bin-top"></path>
-                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" class="bin-top"></path>
-                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" class="bin-bottom"></path>
-                                            <path d="M10 11v6" class="bin-bottom"></path>
-                                            <path d="M14 11v6" class="bin-bottom"></path>
-                                        </svg>
-                                    </button>
-
-                                <?php else: ?>
-                                    <!-- زر التعليق: برتقالي -->
-                                    <button onclick="confirmAction(<?php echo $row['PharmacistID']; ?>, 'suspend')" class="action-btn text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30" title="Suspend">
-                                        <i data-lucide="pause-circle" class="w-5 h-5"></i>
-                                    </button>
-                                    
-                                    <!-- 🚀 زر الحذف: سلة مهملات متحركة Uiverse -->
-                                    <button onclick="confirmAction(<?php echo $row['UserID']; ?>, 'delete')" class="bin-button text-rose-500" title="Delete">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
-                                            <path d="M3 6h18" class="bin-top"></path>
-                                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" class="bin-top"></path>
-                                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" class="bin-bottom"></path>
-                                            <path d="M10 11v6" class="bin-bottom"></path>
-                                            <path d="M14 11v6" class="bin-bottom"></path>
-                                        </svg>
-                                    </button>
-
-                                <?php endif; ?>
-                            </div>
-                        </td>
+    <!-- الجدول -->
+    <!-- الجدول (ديناميكي الحجم يتناسب مع عدد النتائج) -->
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 overflow-hidden mb-6">
+        <div class="overflow-x-auto" id="tableContainer" style="transition: opacity 0.3s ease;">
+            <table class="w-full border-collapse min-w-[800px]">
+                <thead id="tableHeader" class="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 text-sm <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
+                    <tr>
+                        <th class="p-6 font-bold whitespace-nowrap"><?php echo $lang['pharmacy_name']; ?></th>
+                        <th class="p-6 font-bold whitespace-nowrap"><?php echo $lang['owner']; ?></th>
+                        <th class="p-6 font-bold whitespace-nowrap"><?php echo isset($lang['contact_info']) ? $lang['contact_info'] : 'الاتصال'; ?></th>
+                        <th class="p-6 font-bold min-w-[200px]"><?php echo $lang['location_work']; ?></th>
+                        <th class="p-6 font-bold text-center whitespace-nowrap"><?php echo $lang['status']; ?></th>
+                        <th class="p-6 font-bold text-center whitespace-nowrap"><?php echo $lang['actions']; ?></th>
                     </tr>
-                <?php } ?>
-            </tbody>
-        </table>
+                </thead>
+                <!-- 💡 محتوى الجدول الذي سيتم تحديثه عبر الـ AJAX -->
+                <tbody id="pharmaciesBody" class="divide-y divide-gray-100 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
+                    <!-- سيتم ملؤه بواسطة الجافاسكربت فور تحميل الصفحة -->
+                </tbody>
+            </table>
+        </div>
     </div>
 </main>
 
-<!-- ==========================================
-     أكواد الجافاسكربت (لرسائل التأكيد)
-=========================================== -->
 <script>
-    // هذي الدالة بتستقبل الـ ID ونوع الأكشن (حذف، رفض، تعليق) وبناء عليه بتظهر التنبيه المناسب
+    // ==========================================
+    // 💡 دالة الـ AJAX للبحث المباشر (Live Search) مع Debounce
+    // ==========================================
+    let fetchTimeoutId; // متغير لإيقاف الطلبات المتكررة أثناء الكتابة السريعة
+
+    async function fetchTableData() {
+        const body = document.getElementById('pharmaciesBody');
+        const header = document.getElementById('tableHeader');
+        const container = document.getElementById('tableContainer');
+        const status = document.querySelector('input[name="status"]:checked').value;
+        const search = document.getElementById('searchInput').value;
+
+        // 1. تأثير تحميل ناعم (بهتان الجدول)
+        container.style.opacity = '0.3';
+        container.style.pointerEvents = 'none';
+
+        // 2. تحديث الرابط في المتصفح لتبدو كصفحة احترافية
+        const newUrl = `?status=${status}&search=${encodeURIComponent(search)}`;
+        window.history.pushState({
+            path: newUrl
+        }, '', newUrl);
+
+        // 3. تأخير الطلب قليلاً (Debounce) لمنع إرهاق السيرفر عند الكتابة بسرعة
+        clearTimeout(fetchTimeoutId);
+        fetchTimeoutId = setTimeout(async () => {
+            try {
+                // إرسال الطلب للسيرفر مع إضافة معامل ajax=1
+                const response = await fetch(`pharmacies.php?ajax=1&status=${status}&search=${encodeURIComponent(search)}`);
+                const data = await response.json();
+
+                // تحديث HTML الجدول الداخلي فقط
+                body.innerHTML = data.html;
+                header.style.display = data.has_data ? '' : 'none'; // إخفاء رأس الجدول إن لم يكن هناك بيانات
+
+                // إعادة تفعيل أيقونات Lucide للعناصر الجديدة
+                lucide.createIcons();
+
+            } catch (error) {
+                console.error("Error fetching pharmacies:", error);
+            } finally {
+                // إعادة الجدول لوضعه الطبيعي بعد الانتهاء
+                container.style.opacity = '1';
+                container.style.pointerEvents = 'auto';
+            }
+        }, 300); // الانتظار 300 ملي ثانية
+    }
+
+    // جلب البيانات فور تحميل الصفحة لأول مرة (لضمان عمل الألوان والأيقونات بشكل صحيح)
+    document.addEventListener('DOMContentLoaded', fetchTableData);
+
+    // ==========================================
+    // 💡 دوال أزرار الإجراءات (SweetAlert)
+    // ==========================================
     function confirmAction(id, type) {
-        // قيم افتراضية (للحذف والرفض) جايبينها من متغير Lang اللي جهزناه بملف footer
         let modalTitle = Lang.title;
         let modalText = Lang.text;
         let modalBtn = Lang.confirm;
-        let btnColor = '#ef4444'; // لون أحمر
-        let iconType = 'warning';
+        let btnColor = '#ef4444';
 
-        // إذا الأكشن "تعليق" (suspend)، بنغير النصوص واللون للبرتقالي
         if (type === 'suspend') {
             modalTitle = Lang.suspendTitle;
             modalText = Lang.suspendText;
             modalBtn = Lang.suspendConfirm;
-            btnColor = '#f59e0b';
-            iconType = 'question';
+            btnColor = '#f59e0b'; // لون برتقالي للتعليق
         }
 
-        // إظهار التنبيه باستخدام مكتبة SweetAlert2
         Swal.fire({
             title: modalTitle,
             text: modalText,
-            icon: iconType,
+            icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: btnColor,
             cancelButtonColor: '#6b7280',
             confirmButtonText: modalBtn,
             cancelButtonText: Lang.cancel,
-            // تحديد لون خلفية التنبيه حسب وضع الموقع (Dark Mode أو Light)
             background: Lang.isDark ? '#1e293b' : '#fff',
             color: Lang.isDark ? '#f8fafc' : '#1f2937'
         }).then((res) => {
-            // إذا ضغط "تأكيد"، بنحوله لرابط الأكشن وينفذ العملية بالـ PHP فوق
             if (res.isConfirmed) window.location.href = `pharmacies.php?action=${type}&id=${id}`;
         });
     }
-
-    // تفعيل الأيقونات
-    lucide.createIcons();
 </script>
 
 <?php include('../includes/footer.php'); ?>

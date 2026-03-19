@@ -30,8 +30,6 @@ $pendingPharma = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FR
 // جلب عدد "المرضى" المسجلين في النظام (RoleID=3)
 $patientsCount = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM User WHERE RoleID=3"))['c'];
 
-// جلب إجمالي عدد "الطلبات" (المشتريات) اللي تمت في النظام
-$ordersCount = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM `Order`"))['c'];
 
 // ==========================================
 // 3. جلب بيانات الصيدليات لعرضها على الخريطة
@@ -198,7 +196,7 @@ html[dir="rtl"] #filter-pending:checked ~ .glass-glider {
     <!-- ==========================================
          قسم الكروت الإحصائية الأربعة (Admin Grid)
     =========================================== -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 
         <!-- 1. كرت: الصيدليات العاملة (المفعلة) - أخضر للدلالة على النشاط -->
         <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 flex items-center justify-between border-b-4 border-transparent hover:border-b-emerald-500 dark:hover:border-b-emerald-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
@@ -230,14 +228,6 @@ html[dir="rtl"] #filter-pending:checked ~ .glass-glider {
             <i data-lucide="users" class="w-12 h-12 text-[#048AC1] drop-shadow-sm opacity-80"></i>
         </div>
 
-        <!-- 4. كرت: عمليات الشراء - بنفسجي -->
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 flex items-center justify-between border-b-4 border-transparent hover:border-b-purple-500 dark:hover:border-b-purple-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-            <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-2"><?php echo $lang['total_orders']; ?></p>
-                <h3 class="text-3xl font-black text-gray-800 dark:text-white"><?php echo $ordersCount; ?></h3>
-            </div>
-            <i data-lucide="shopping-bag" class="w-12 h-12 text-purple-500 drop-shadow-sm opacity-80"></i>
-        </div>
     </div>
 
     <!-- ==========================================
