@@ -1,4 +1,5 @@
 <?php
+
 include('../config/database.php');
 session_start();
 require_once('../includes/lang.php');
@@ -11,138 +12,208 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role_id'] != 2) {
 
 $pharmacist_id = $_SESSION['user_id'];
 $message = "";
+$error = "";
 
 // ==========================================
-// 1. معالجة عمليات الإضافة والتعديل (Add / Edit)
+// 1. جلب التصنيفات لاستخدامها في الفلتر
 // ==========================================
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_medicine'])) {
-    $med_id = isset($_POST['medicine_id']) ? intval($_POST['medicine_id']) : 0;
-    $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $cat_id = intval($_POST['category_id']);
+$cat_col = ($current_lang == 'en') ? 'NameEN' : 'NameAR';
+$categories_query = mysqli_query($conn, "SELECT CategoryID, $cat_col AS Name FROM Category ORDER BY $cat_col ASC");
+
+// ==========================================
+// 2. معالجة حفظ المخزون (إضافة / تعديل) - التكلفة ثابتة ومحمية
+// ==========================================
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_stock'])) {
+    $stock_id = isset($_POST['stock_id']) ? intval($_POST['stock_id']) : 0;
+    $system_med_id = isset($_POST['system_med_id']) ? intval($_POST['system_med_id']) : 0;
+
     $price = floatval($_POST['price']);
-    $cost = floatval($_POST['cost']);
     $stock = intval($_POST['stock']);
     $min_stock = intval($_POST['min_stock']);
     $expiry = mysqli_real_escape_string($conn, $_POST['expiry']);
-    $desc = mysqli_real_escape_string($conn, $_POST['description']);
-    $is_controlled = isset($_POST['is_controlled']) ? 1 : 0;
 
-    $image = "";
-    if (isset($_FILES['image']['name']) && $_FILES['image']['name'] != '') {
-        $image = time() . '_' . $_FILES['image']['name'];
-        move_uploaded_file($_FILES['image']['tmp_name'], "../uploads/" . $image);
-    }
-
-    if ($med_id > 0) {
-        $img_query = $image != "" ? ", Image='$image'" : "";
-        $sql = "UPDATE Medicine SET Name='$name', CategoryID=$cat_id, Price=$price, CostPrice=$cost,
-                Stock=$stock, MinimumStock=$min_stock, ExpiryDate='$expiry', Description='$desc',
-                IsControlled=$is_controlled $img_query WHERE MedicineID=$med_id AND PharmacistID=$pharmacist_id";
+    // 🚀 جلب سعر التكلفة الثابت من النظام بدلاً من الاعتماد على الفورم للحماية
+    $sys_med_query = mysqli_query($conn, "SELECT FixedCostPrice FROM SystemMedicine WHERE SystemMedID = $system_med_id");
+    if ($sys_med_query && mysqli_num_rows($sys_med_query) > 0) {
+        $sys_med_data = mysqli_fetch_assoc($sys_med_query);
+        $cost = floatval($sys_med_data['FixedCostPrice']);
     } else {
-        $sql = "INSERT INTO Medicine (Name, CategoryID, Price, CostPrice, Stock, MinimumStock, ExpiryDate, Description, IsControlled, Image, PharmacistID)
-                VALUES ('$name', $cat_id, $price, $cost, $stock, $min_stock, '$expiry', '$desc', $is_controlled, '$image', $pharmacist_id)";
+        $cost = 0.00;
     }
-    mysqli_query($conn, $sql);
-    header("Location: medicines.php");
-    exit();
+
+    if ($stock_id > 0) {
+        $sql = "UPDATE PharmacyStock
+                SET Price=$price, CostPrice=$cost, Stock=$stock, MinimumStock=$min_stock, ExpiryDate='$expiry'
+                WHERE StockID=$stock_id AND PharmacistID=$pharmacist_id";
+        mysqli_query($conn, $sql);
+    } else {
+        $check = mysqli_query($conn, "SELECT StockID FROM PharmacyStock WHERE PharmacistID=$pharmacist_id AND SystemMedID=$system_med_id");
+        if (mysqli_num_rows($check) > 0) {
+            $error = "هذا الدواء موجود مسبقاً في مخزونك! يمكنك تعديل كميته بدلاً من إضافته مرة أخرى.";
+        } else {
+            $sql = "INSERT INTO PharmacyStock (SystemMedID, PharmacistID, Price, CostPrice, Stock, MinimumStock, ExpiryDate)
+                    VALUES ($system_med_id, $pharmacist_id, $price, $cost, $stock, $min_stock, '$expiry')";
+            mysqli_query($conn, $sql);
+        }
+    }
+
+    if (empty($error)) {
+        header("Location: medicines.php");
+        exit();
+    }
 }
 
 // ==========================================
-// 2. معالجة عملية الحذف (Delete)
+// 3. معالجة عملية الحذف (Delete Stock)
 // ==========================================
 if (isset($_GET['delete'])) {
     $del_id = intval($_GET['delete']);
-    mysqli_query($conn, "DELETE FROM Medicine WHERE MedicineID=$del_id AND PharmacistID=$pharmacist_id");
+    mysqli_query($conn, "DELETE FROM PharmacyStock WHERE StockID=$del_id AND PharmacistID=$pharmacist_id");
     header("Location: medicines.php");
     exit();
 }
 
 // ==========================================
-// 3. جلب بيانات التصنيفات 
+// 4. 🚀 معالجة طلب AJAX للبحث في الكتالوج الموحد
 // ==========================================
-$categories = mysqli_query($conn, "SELECT * FROM Category ORDER BY Name ASC");
+if (isset($_GET['search_system_med'])) {
+    $q = mysqli_real_escape_string($conn, $_GET['search_system_med']);
+    $cat_id = isset($_GET['cat_id']) ? intval($_GET['cat_id']) : 0;
+
+    $cat_condition = ($cat_id > 0) ? "AND sm.CategoryID = $cat_id" : "";
+    $q_condition = !empty($q) ? "AND (sm.Name LIKE '%$q%' OR sm.ScientificName LIKE '%$q%')" : "";
+
+    // جلب الأدوية متضمنة سعر التكلفة الثابت
+    $sys_query = "
+        SELECT sm.SystemMedID, sm.Name, sm.ScientificName, sm.Image, sm.IsControlled, sm.FixedCostPrice, c.$cat_col as CategoryName
+        FROM SystemMedicine sm
+        LEFT JOIN Category c ON sm.CategoryID = c.CategoryID
+        WHERE 1=1
+        $q_condition
+        $cat_condition
+        AND sm.SystemMedID NOT IN (SELECT SystemMedID FROM PharmacyStock WHERE PharmacistID = $pharmacist_id)
+        ORDER BY sm.SystemMedID DESC  /* 🚀 التعديل هنا: عرض أحدث الأدوية أولاً كنوع من الاقتراح */
+        LIMIT 20
+    ";
+
+    $sys_res = mysqli_query($conn, $sys_query);
+    $results = [];
+    while ($row = mysqli_fetch_assoc($sys_res)) {
+        $results[] = $row;
+    }
+
+    header('Content-Type: application/json');
+    echo json_encode($results);
+    exit();
+}
 
 // ==========================================
-// 4. نظام البحث المباشر (AJAX) وجلب الأدوية
+// 5. نظام البحث وجلب مخزون الصيدلية للجدول (AJAX Table)
 // ==========================================
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
-$query = "SELECT m.*, c.Name as CategoryName
-          FROM Medicine m
-          LEFT JOIN Category c ON m.CategoryID = c.CategoryID
-          WHERE m.PharmacistID = $pharmacist_id AND m.Name LIKE '%$search%'
-          ORDER BY m.MedicineID DESC";
+$query = "
+    SELECT ps.*, sm.Name, sm.ScientificName, sm.Image, sm.IsControlled, sm.FixedCostPrice, c.$cat_col as CategoryName
+    FROM PharmacyStock ps
+    JOIN SystemMedicine sm ON ps.SystemMedID = sm.SystemMedID
+    LEFT JOIN Category c ON sm.CategoryID = c.CategoryID
+    WHERE ps.PharmacistID = $pharmacist_id
+    AND (sm.Name LIKE '%$search%' OR sm.ScientificName LIKE '%$search%')
+    ORDER BY ps.StockID DESC
+";
 $medicines = mysqli_query($conn, $query);
 
-// 🚀 معالجة طلب AJAX لرسم الجدول
-if (isset($_GET['ajax'])) {
+if (isset($_GET['ajax_table'])) {
     ob_start();
     if (mysqli_num_rows($medicines) > 0) {
         while ($med = mysqli_fetch_assoc($medicines)) {
-            // حساب نسبة الربح
             $margin = 0;
             if ($med['Price'] > 0 && $med['CostPrice'] > 0) {
                 $margin = round((($med['Price'] - $med['CostPrice']) / $med['Price']) * 100);
             }
 
-            // فحص الصلاحية الذكي
             $expiry_timestamp = strtotime($med['ExpiryDate']);
             $current_timestamp = time();
             $days_30_timestamp = strtotime('+30 days');
 
             if ($expiry_timestamp < $current_timestamp) {
-                $expiry_class = "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400";
+                $expiry_class = "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 border-rose-200 dark:border-rose-800";
             } elseif ($expiry_timestamp <= $days_30_timestamp) {
-                $expiry_class = "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400";
+                $expiry_class = "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 dark:border-amber-800";
             } else {
-                $expiry_class = "bg-[#E6F7ED] text-[#0A7A48] dark:bg-[#044E29]/40 dark:text-[#4ADE80]";
+                $expiry_class = "bg-[#E6F7ED] text-[#0A7A48] dark:bg-[#044E29]/40 dark:text-[#4ADE80] border-[#0A7A48]/20 dark:border-[#4ADE80]/20";
             }
 
-            $imgSrc = !empty($med['Image']) ? '../uploads/' . $med['Image'] : 'https://ui-avatars.com/api/?name=' . urlencode($med['Name']) . '&background=f8fafc&color=94a3b8';
-            $med_json = htmlspecialchars(json_encode($med), ENT_QUOTES, 'UTF-8');
+            $imgSrc = $med['Image'];
+            if (!empty($imgSrc) && $imgSrc != 'default_med.png') {
+                if (!str_starts_with($imgSrc, 'uploads/') && !str_starts_with($imgSrc, '../uploads/')) {
+                    $imgSrc = "../uploads/" . $imgSrc;
+                } elseif (str_starts_with($imgSrc, 'uploads/')) {
+                    $imgSrc = "../" . $imgSrc;
+                }
+            } else {
+                $imgSrc = 'https://ui-avatars.com/api/?name=' . urlencode($med['Name']) . '&background=e2e8f0&color=475569';
+            }
+
+            // تضمين FixedCostPrice لتحديث الفورم عند التعديل
+            $med_json = htmlspecialchars(json_encode([
+                'StockID' => $med['StockID'],
+                'SystemMedID' => $med['SystemMedID'],
+                'Name' => $med['Name'],
+                'ScientificName' => $med['ScientificName'],
+                'Image' => $imgSrc,
+                'IsControlled' => $med['IsControlled'],
+                'CategoryName' => $med['CategoryName'],
+                'Price' => $med['Price'],
+                'CostPrice' => $med['CostPrice'],
+                'FixedCostPrice' => $med['FixedCostPrice'],
+                'Stock' => $med['Stock'],
+                'MinimumStock' => $med['MinimumStock'],
+                'ExpiryDate' => $med['ExpiryDate']
+            ]), ENT_QUOTES, 'UTF-8');
 ?>
             <tr class="hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 border-b border-transparent hover:border-gray-100 dark:hover:border-slate-700">
                 <td class="p-4 flex items-center gap-3">
-                    <img src="<?php echo $imgSrc; ?>" class="w-10 h-10 rounded-lg object-cover border border-gray-200 dark:border-slate-600">
+                    <img src="<?php echo $imgSrc; ?>" class="w-12 h-12 rounded-xl object-cover border border-gray-200 dark:border-slate-600 bg-white">
                     <div>
-                        <span class="font-bold text-gray-800 dark:text-white block"><?php echo htmlspecialchars($med['Name']); ?></span>
-                        <?php if ($med['IsControlled']): ?>
-                            <div class="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded shadow-sm mt-0.5">
-                                <i data-lucide="file-text" class="w-3 h-3"></i>
-                                <span class="text-[10px] font-black tracking-wider">RX</span>
-                            </div>
-                        <?php endif; ?>
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="font-black text-gray-800 dark:text-white"><?php echo htmlspecialchars($med['Name']); ?></span>
+                            <?php if ($med['IsControlled']): ?>
+                                <span class="bg-rose-100 text-rose-700 text-[9px] px-1.5 py-0.5 rounded uppercase font-black border border-rose-200 dark:bg-rose-900/40 dark:text-rose-400 dark:border-rose-800 tracking-widest">Rx</span>
+                            <?php endif; ?>
+                        </div>
+                        <span class="text-[11px] font-bold text-gray-500 block"><?php echo htmlspecialchars($med['ScientificName'] ?? ''); ?></span>
                     </div>
                 </td>
                 <td class="p-4 text-gray-500 dark:text-gray-400 font-medium">
-                    <span class="bg-gray-100 dark:bg-slate-700 px-2.5 py-1 rounded-md text-xs">
-                        <?php echo $med['CategoryName'] ? htmlspecialchars($med['CategoryName']) : (isset($lang['uncategorized']) ? $lang['uncategorized'] : 'غير مصنف'); ?>
+                    <span class="bg-gray-100 dark:bg-slate-700 px-2.5 py-1 rounded-md text-xs font-bold">
+                        <?php echo htmlspecialchars($med['CategoryName'] ?? 'غير مصنف'); ?>
                     </span>
                 </td>
                 <td class="p-4 text-center">
                     <?php if ($med['Stock'] <= $med['MinimumStock']): ?>
-                        <span class="bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 px-3 py-1.5 rounded-lg font-bold text-xs inline-block min-w-[40px] shadow-sm"><?php echo $med['Stock']; ?></span>
+                        <span class="bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 px-3 py-1.5 rounded-lg font-black text-sm inline-block min-w-[40px] shadow-sm border border-rose-200 dark:border-rose-800/50"><?php echo $med['Stock']; ?></span>
                     <?php else: ?>
-                        <span class="bg-[#E6F7ED] text-[#0A7A48] dark:bg-[#044E29]/50 dark:text-[#4ADE80] px-3 py-1.5 rounded-lg font-bold text-xs inline-block min-w-[40px] shadow-sm border border-transparent dark:border-[#0A7A48]/30"><?php echo $med['Stock']; ?></span>
+                        <span class="bg-[#E6F7ED] text-[#0A7A48] dark:bg-[#044E29]/50 dark:text-[#4ADE80] px-3 py-1.5 rounded-lg font-black text-sm inline-block min-w-[40px] shadow-sm border border-transparent dark:border-[#0A7A48]/30"><?php echo $med['Stock']; ?></span>
                     <?php endif; ?>
                 </td>
-                <td class="p-4 font-bold text-gray-800 dark:text-white"><span dir="ltr"><?php echo $med['Price']; ?> ₪</span></td>
-                <td class="p-4 text-gray-500 dark:text-gray-400 font-medium"><span dir="ltr"><?php echo $med['CostPrice']; ?> ₪</span></td>
-                <td class="p-4 text-gray-500 dark:text-gray-400 font-medium" dir="ltr"><?php echo $margin; ?>%</td>
+                <td class="p-4 font-black text-gray-800 dark:text-white text-[15px]"><span dir="ltr"><?php echo $med['Price']; ?> ₪</span></td>
+                <td class="p-4 text-gray-500 dark:text-gray-400 font-bold"><span dir="ltr"><?php echo $med['CostPrice']; ?> ₪</span></td>
+                <td class="p-4 font-black <?php echo $margin > 20 ? 'text-emerald-500' : ($margin > 0 ? 'text-amber-500' : 'text-rose-500'); ?>" dir="ltr"><?php echo $margin; ?>%</td>
                 <td class="p-4 font-medium" dir="ltr">
-                    <span class="<?php echo $expiry_class; ?> px-3 py-1.5 rounded-full text-xs font-bold inline-block shadow-sm">
+                    <span class="border <?php echo $expiry_class; ?> px-3 py-1.5 rounded-full text-xs font-bold inline-block shadow-sm">
                         <?php echo $med['ExpiryDate']; ?>
                     </span>
                 </td>
                 <td class="p-4 text-center">
                     <div class="flex items-center justify-center gap-1">
-                        <button onclick='editModal(<?php echo $med_json; ?>)' class="edit-button text-[#048AC1]" title="<?php echo $lang['edit_product']; ?>">
+                        <button onclick='editModal(<?php echo $med_json; ?>)' class="edit-button text-[#0A7A48] dark:text-[#4ADE80]" title="تعديل السعر/الكمية">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 20h9"></path>
                                 <path class="line" d="M12 20h9"></path>
                                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                             </svg>
                         </button>
-                        <button onclick="confirmDelete(<?php echo $med['MedicineID']; ?>)" class="bin-button text-rose-500" title="<?php echo isset($lang['delete']) ? $lang['delete'] : 'حذف'; ?>">
+                        <button onclick="confirmDelete(<?php echo $med['StockID']; ?>)" class="bin-button text-rose-500" title="إزالة من المخزون">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
                                 <path d="M3 6h18" class="bin-top"></path>
                                 <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" class="bin-top"></path>
@@ -154,11 +225,12 @@ if (isset($_GET['ajax'])) {
                     </div>
                 </td>
             </tr>
-        <?php }
-    } else { ?>
+        <?php
+        }
+    } else {
+        ?>
         <tr>
             <td colspan="8" class="p-16">
-                <!-- 🚀 Empty State متحرك مستوحى من Uiverse -->
                 <div class="flex flex-col items-center justify-center text-center">
                     <div class="relative w-24 h-24 mb-6">
                         <div class="absolute inset-0 bg-[#0A7A48] rounded-full opacity-20 animate-ping"></div>
@@ -166,12 +238,13 @@ if (isset($_GET['ajax'])) {
                             <i data-lucide="package-x" class="w-10 h-10 text-[#0A7A48] dark:text-[#4ADE80]"></i>
                         </div>
                     </div>
-                    <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-2">لا يوجد أدوية مطابقة</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">جرب كتابة اسم مختلف أو أضف دواءً جديداً.</p>
+                    <h3 class="text-lg font-black text-gray-800 dark:text-white mb-2">لا يوجد أدوية مطابقة في مخزونك</h3>
+                    <p class="text-sm font-bold text-gray-500 dark:text-gray-400">جرب كتابة اسم مختلف أو قم بإضافة دواء جديد لمخزونك.</p>
                 </div>
             </td>
         </tr>
-<?php }
+<?php
+    }
     $content = ob_get_clean();
     header('Content-Type: application/json');
     echo json_encode(['html' => $content, 'has_data' => mysqli_num_rows($medicines) > 0]);
@@ -183,7 +256,6 @@ include('../includes/sidebar.php');
 ?>
 
 <style>
-    /* أزرار Uiverse (التعديل والحذف) */
     .edit-button {
         width: 36px;
         height: 36px;
@@ -198,11 +270,11 @@ include('../includes/sidebar.php');
     }
 
     .edit-button:hover {
-        background-color: rgba(4, 138, 193, 0.1);
+        background-color: rgba(10, 122, 72, 0.1);
     }
 
     .dark .edit-button:hover {
-        background-color: rgba(4, 138, 193, 0.3);
+        background-color: rgba(74, 222, 128, 0.2);
     }
 
     .edit-button svg {
@@ -245,205 +317,231 @@ include('../includes/sidebar.php');
         background-color: rgba(225, 29, 72, 0.3);
     }
 
-    .bin-bottom {
-        transform-origin: bottom center;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
+    .bin-bottom,
     .bin-top {
-        transform-origin: bottom right;
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-origin: bottom center;
     }
 
     .bin-button:hover .bin-top {
         transform: rotate(20deg) translateY(-2px);
     }
 
-    /* إخفاء أسهم الأرقام */
     input[type="number"]::-webkit-inner-spin-button,
     input[type="number"]::-webkit-outer-spin-button {
         -webkit-appearance: none;
         margin: 0;
     }
 
-    /* منطقة الرفع */
-    .upload-area {
-        transition: all 0.3s ease-in-out;
+    .search-dropdown {
+        overflow-y: auto;
     }
 
-    .upload-area:hover {
-        background-color: rgba(10, 122, 72, 0.05);
-        border-color: #0A7A48;
+    .search-dropdown::-webkit-scrollbar {
+        width: 6px;
     }
 
-    .dark .upload-area:hover {
-        background-color: rgba(10, 122, 72, 0.15);
-        border-color: #4ADE80;
+    .search-dropdown::-webkit-scrollbar-thumb {
+        background-color: rgba(10, 122, 72, 0.3);
+        border-radius: 10px;
     }
 </style>
 
-<main class="flex-1 p-8 bg-[#F2FBF5] dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300">
+<main class="flex-1 p-8 bg-[#F2FBF5] dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
     <?php include('../includes/topbar.php'); ?>
 
-    <!-- ==========================================
-         شريط البحث وزر الإضافة 
-    =========================================== -->
+    <?php if (!empty($error)): ?>
+        <div class="mb-6 bg-rose-50 dark:bg-rose-900/30 border-l-4 border-rose-500 p-4 rounded-xl flex items-start gap-3">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-rose-500 mt-0.5"></i>
+            <p class="text-sm font-bold text-rose-700 dark:text-rose-400"><?php echo $error; ?></p>
+        </div>
+    <?php endif; ?>
+
     <div class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 class="text-3xl font-black text-gray-800 dark:text-white flex items-center gap-3 w-full md:w-auto">
             <i data-lucide="briefcase-medical" class="text-[#0A7A48] dark:text-[#4ADE80] w-[42px] h-[30px]"></i> <?php echo $lang['product_inventory']; ?>
         </h1>
 
         <div class="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-            <!-- 🚀 شريط البحث المباشر (AJAX) -->
             <div class="w-full md:w-96 relative group">
-                <input type="text" id="searchInput" oninput="fetchTableData()" placeholder="<?php echo $lang['search_product']; ?>" value="<?php echo htmlspecialchars($search); ?>"
+                <input type="text" id="searchInput" oninput="fetchTableData()" placeholder="ابحث في مخزونك الحالي..."
                     class="w-full p-3 rounded-2xl border border-gray-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-sm focus:ring-2 focus:ring-[#0A7A48] focus:border-[#0A7A48] outline-none transition-all text-sm">
                 <i data-lucide="search" class="top-3.5 text-gray-400 group-focus-within:text-[#0A7A48] transition-colors <?php echo ($dir == 'rtl') ? 'absolute left-3' : 'absolute right-3'; ?> w-5 h-5"></i>
             </div>
 
-            <!-- زر إضافة دواء -->
             <button onclick="openModal()" class="w-full md:w-auto group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl bg-[#0A7A48] px-6 py-3 font-bold text-white shadow-lg shadow-green-900/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 border border-transparent hover:border-green-400/30">
                 <div class="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
                     <div class="relative h-full w-10 bg-white/20"></div>
                 </div>
                 <i data-lucide="plus-circle" class="relative z-10 w-5 h-5"></i>
-                <span class="relative z-10 text-sm"><?php echo $lang['add_product']; ?></span>
+                <span class="relative z-10 text-sm">إضافة دواء للمخزون</span>
             </button>
         </div>
     </div>
 
-    <!-- ==========================================
-         جدول المخزون (يتحدث ديناميكياً)
-    =========================================== -->
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 overflow-hidden transition-colors mb-6">
         <div class="overflow-x-auto" id="tableContainer" style="transition: opacity 0.3s ease;">
-            <table class="w-full border-collapse">
-                <thead id="tableHeader" class="bg-gray-50/50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700">
-                    <tr class="text-gray-600 dark:text-gray-400 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
+            <table class="w-full border-collapse min-w-[900px]">
+
+                <thead id="tableHeader" class="bg-gray-50/50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700" <?php if (mysqli_num_rows($medicines) == 0) echo 'style="display:none;"'; ?>>
+                    <tr class="text-gray-600 dark:text-gray-400 text-sm <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                         <th class="p-4 font-bold"><?php echo $lang['product']; ?></th>
                         <th class="p-4 font-bold"><?php echo $lang['category']; ?></th>
                         <th class="p-4 font-bold text-center"><?php echo $lang['stock']; ?></th>
-                        <th class="p-4 font-bold"><?php echo $lang['price']; ?></th>
-                        <th class="p-4 font-bold"><?php echo $lang['cost']; ?></th>
-                        <th class="p-4 font-bold"><?php echo $lang['margin']; ?></th>
+                        <th class="p-4 font-bold">سعر البيع</th>
+                        <th class="p-4 font-bold">التكلفة</th>
+                        <th class="p-4 font-bold">الربح</th>
                         <th class="p-4 font-bold"><?php echo $lang['expiry']; ?></th>
                         <th class="p-4 font-bold text-center"><?php echo $lang['actions']; ?></th>
                     </tr>
                 </thead>
-                <!-- 💡 سيتم تحديث الـ tbody بواسطة الجافاسكربت -->
                 <tbody id="medicinesBody" class="divide-y divide-gray-50 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
-                    <!-- الفراغ يعبأ عبر الجافاسكربت -->
+                    <!-- يُعبأ بـ AJAX -->
                 </tbody>
             </table>
         </div>
     </div>
 </main>
 
-<!-- ==========================================
-     النافذة المنبثقة (Modal) لإضافة/تعديل دواء
-=========================================== -->
-<div id="medicineModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 hidden flex justify-center items-center transition-opacity py-4">
-    <div class="bg-white dark:bg-slate-800 w-full max-w-2xl max-h-full rounded-3xl shadow-2xl overflow-hidden transform transition-all relative mx-4 border border-gray-100 dark:border-slate-700 flex flex-col">
-        <div class="px-6 py-5 border-b border-gray-100 dark:border-slate-700 shrink-0">
+<!-- النافذة المنبثقة (Modal) للبحث والإضافة والتعديل -->
+<div id="medicineModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex justify-center items-center transition-opacity py-4 px-4">
+    <div class="bg-[#F2FBF5] dark:bg-slate-900 w-full max-w-3xl max-h-[95vh] rounded-3xl shadow-2xl overflow-hidden transform transition-all border border-gray-200 dark:border-slate-700 flex flex-col">
+
+        <!-- الهيدر -->
+        <div class="px-6 py-5 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
             <h2 id="modalTitle" class="text-xl font-black text-gray-800 dark:text-white flex items-center gap-3">
-                <div class="p-2 bg-[#E6F7ED] dark:bg-[#044E29]/40 rounded-lg shrink-0">
-                    <i data-lucide="package-plus" class="text-[#0A7A48] dark:text-[#4ADE80] w-5 h-5"></i>
+                <div class="p-2 bg-[#E6F7ED] dark:bg-[#044E29]/40 rounded-lg text-[#0A7A48] dark:text-[#4ADE80] shadow-sm">
+                    <i data-lucide="briefcase-medical" class="w-5 h-5"></i>
                 </div>
-                <span id="modalTitleText"><?php echo $lang['add_new_product']; ?></span>
+                <span id="modalTitleText">إضافة دواء للمخزون</span>
             </h2>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-rose-500 bg-white dark:bg-slate-800 shadow-sm border border-gray-200 dark:border-slate-600 p-1.5 rounded-full transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
         </div>
 
-        <form method="POST" enctype="multipart/form-data" class="flex flex-col flex-1 overflow-hidden">
-            <input type="hidden" name="medicine_id" id="medicine_id" value="">
-            <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"><?php echo $lang['product_name']; ?></label>
-                        <input type="text" name="name" id="name" required class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white transition">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"><?php echo $lang['category']; ?></label>
-                        <div class="relative group">
-                            <select name="category_id" id="category_id" required class="w-full appearance-none bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white transition cursor-pointer pr-10 rtl:pr-4 rtl:pl-10">
-                                <option value=""><?php echo isset($lang['select_category']) ? $lang['select_category'] : 'اختر تصنيفاً...'; ?></option>
+        <!-- محتوى النافذة -->
+        <div class="p-6 overflow-y-auto flex-1 custom-scrollbar relative">
+
+            <!-- 1. قسم البحث -->
+            <div id="searchSection" class="mb-6 relative z-20 flex flex-col h-[400px]">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-t-2xl border border-gray-200 dark:border-slate-700 border-b-0 shadow-sm">
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">1. ابحث عن الدواء في الكتالوج الموحد:</label>
+
+                    <div class="flex flex-col md:flex-row gap-4 relative">
+
+                        <div class="w-full md:w-1/3 relative group">
+                            <select id="systemSearchCategory" onchange="triggerSystemSearch()" class="w-full h-[50px] bg-gray-50 dark:bg-slate-900 border-2 border-gray-200 dark:border-slate-700 rounded-xl px-4 text-sm font-bold text-gray-900 dark:text-white outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 cursor-pointer transition-all">
+                                <option value="0">جميع التصنيفات</option>
                                 <?php
-                                mysqli_data_seek($categories, 0);
-                                while ($cat = mysqli_fetch_assoc($categories)) {
-                                    echo "<option value='{$cat['CategoryID']}'>{$cat['Name']}</option>";
-                                } ?>
+                                mysqli_data_seek($categories_query, 0);
+                                while ($cat = mysqli_fetch_assoc($categories_query)) {
+                                    echo '<option value="' . $cat['CategoryID'] . '" class="text-gray-900 dark:text-white bg-white dark:bg-slate-800">' . htmlspecialchars($cat['Name']) . '</option>';
+                                }
+                                ?>
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 <?php echo ($dir == 'rtl') ? 'left-0 pl-3' : 'right-0 pr-3'; ?> flex items-center text-gray-400 group-focus-within:text-[#0A7A48] transition-colors"><i data-lucide="chevron-down" class="w-4 h-4"></i></div>
                         </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"><?php echo $lang['price']; ?> (₪)</label>
-                        <input type="number" min="0" step="0.01" name="price" id="price" required class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white transition font-bold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"><?php echo $lang['cost']; ?> (₪)</label>
-                        <input type="number" min="0" step="0.01" name="cost" id="cost" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white transition font-bold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"><?php echo $lang['stock']; ?></label>
-                        <input type="number" min="0" step="1" name="stock" id="stock" required class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white transition font-bold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"><?php echo $lang['min_stock']; ?></label>
-                        <input type="number" min="0" step="1" name="min_stock" id="min_stock" value="10" required class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white transition font-bold text-gray-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"><?php echo $lang['expiry']; ?></label>
-                        <input type="date" name="expiry" id="expiry" required class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white dark:[color-scheme:dark] transition" dir="ltr">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"><?php echo $lang['description']; ?></label>
-                        <input type="text" name="description" id="description" class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white transition">
+
+                        <div class="w-full md:w-2/3 relative">
+                            <input type="text" id="systemSearchInput" oninput="triggerSystemSearch()" placeholder="اكتب اسم الدواء التجاري أو العلمي..." autocomplete="off"
+                                class="w-full h-[50px] bg-gray-50 dark:bg-slate-900 border-2 border-gray-200 dark:border-slate-700 rounded-xl px-4 rtl:pr-11 ltr:pl-11 text-sm font-bold text-gray-900 dark:text-white outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 transition-all placeholder-gray-400">
+                            <i data-lucide="search" class="absolute top-0 bottom-0 my-auto <?php echo ($dir == 'rtl') ? 'right-4' : 'left-4'; ?> w-5 h-5 text-gray-400"></i>
+                        </div>
                     </div>
                 </div>
 
+                <!-- قائمة النتائج -->
+                <div class="flex-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-b-2xl overflow-hidden flex flex-col relative shadow-sm">
+                    <div class="px-5 py-3 bg-gray-50/80 dark:bg-slate-900/50 border-b border-gray-100 dark:border-slate-700">
+                        <span id="resultsTitle" class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">الأدوية المقترحة لك:</span>
+                    </div>
+                    <ul id="systemSearchResults" class="flex-1 overflow-y-auto search-dropdown p-2 divide-y divide-gray-50 dark:divide-slate-700/50">
+                        <!-- تعبأ بـ AJAX -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 2. كرت الدواء المختار -->
+            <div id="selectedMedicineCard" class="hidden mb-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-5 rounded-2xl flex items-start gap-4 relative shadow-sm">
+                <img id="selMedImg" src="" class="w-20 h-20 rounded-xl object-cover border border-gray-200 dark:border-slate-600 bg-gray-50 shadow-sm shrink-0">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5"><?php echo $lang['product_image']; ?></label>
-                    <label for="image_upload" class="upload-area flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-2xl cursor-pointer bg-gray-50/50 dark:bg-slate-900/50 group">
-                        <div class="flex flex-col items-center justify-center pt-3 pb-3">
-                            <i data-lucide="cloud-upload" class="w-6 h-6 mb-2 text-gray-400 group-hover:text-[#0A7A48] dark:group-hover:text-[#4ADE80] transition-colors"></i>
-                            <p class="mb-1 text-sm text-gray-500 dark:text-gray-400 font-bold" id="file-name-display">اضغط هنا لرفع الصورة</p>
-                        </div>
-                        <input id="image_upload" type="file" name="image" accept="image/*" class="hidden" onchange="updateFileName(this)" />
-                    </label>
+                    <div class="flex items-center gap-2 mb-1.5 mt-1">
+                        <h3 id="selMedName" class="font-black text-gray-800 dark:text-white text-xl"></h3>
+                        <span id="selMedRx" class="hidden bg-rose-100 text-rose-700 text-[10px] px-1.5 py-0.5 rounded uppercase font-black border border-rose-200 dark:bg-rose-900/40 dark:border-rose-800 dark:text-rose-400 tracking-widest shadow-sm">Rx</span>
+                    </div>
+                    <p id="selMedScientific" class="text-sm font-bold text-gray-500 mb-2.5"></p>
+                    <span id="selMedCategory" class="bg-gray-50 dark:bg-slate-900 text-gray-600 dark:text-gray-300 text-xs px-2.5 py-1 rounded-md border border-gray-200 dark:border-slate-700 font-bold inline-flex items-center gap-1.5"><i data-lucide="tag" class="w-3 h-3 text-[#0A7A48]"></i> <span></span></span>
                 </div>
+            </div>
 
-                <div class="flex items-center justify-between bg-amber-50 dark:bg-amber-900/20 p-3 rounded-2xl border border-amber-200 dark:border-amber-900/50 shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <div class="p-1.5 bg-amber-100 dark:bg-amber-800/50 rounded-lg shrink-0"><i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600 dark:text-amber-400"></i></div>
+            <!-- 3. فورم إدخال بيانات المخزون -->
+            <form id="stockForm" method="POST" class="hidden flex flex-col gap-5">
+                <input type="hidden" name="stock_id" id="stock_id" value="">
+                <input type="hidden" name="system_med_id" id="system_med_id" value="">
+
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                    <h3 class="text-xs font-black text-gray-400 dark:text-gray-500 mb-5 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="settings-2" class="w-4 h-4"></i> إعدادات المخزون والسعر والتنبيهات
+                    </h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                        <!-- حقل التكلفة (مغلق ومحمي) -->
                         <div>
-                            <h4 class="text-sm font-bold text-amber-800 dark:text-amber-400 select-none"><?php echo $lang['is_controlled']; ?></h4>
-                            <p class="text-[11px] text-amber-600 dark:text-amber-500 mt-0.5 leading-tight">وصفة طبية مطلوبة.</p>
+                            <div class="flex justify-between items-end mb-2">
+                                <label class="block text-xs font-bold text-gray-600 dark:text-gray-400">سعر التكلفة (₪)</label>
+                                <span id="dynamicMargin" class="text-[10px] font-black text-gray-400 transition-colors">الربح: 0%</span>
+                            </div>
+                            <input type="number" name="cost" id="cost" readonly class="w-full bg-gray-100 dark:bg-slate-900/80 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none text-gray-500 font-bold cursor-not-allowed opacity-80 shadow-inner" dir="ltr" title="سعر التكلفة محدد من الإدارة">
+                        </div>
+
+                        <!-- حقل سعر البيع -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2">سعر البيع للجمهور (₪)</label>
+                            <input type="number" min="0.01" step="0.01" name="price" id="price" required class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white font-black text-[#0A7A48] dark:text-[#4ADE80] transition-all" dir="ltr">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2">الكمية الحالية المتوفرة</label>
+                            <input type="number" min="0" step="1" name="stock" id="stock" required class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white font-black text-center transition-all" dir="ltr">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2">حد التنبيه بنقص المخزون</label>
+                            <input type="number" min="0" step="1" name="min_stock" id="min_stock" value="10" required class="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white font-bold text-gray-500 text-center transition-all" dir="ltr">
+                        </div>
+
+                        <div class="col-span-1 md:col-span-2">
+                            <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-2">تاريخ انتهاء الصلاحية</label>
+                            <input type="date" name="expiry" id="expiry" required class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#0A7A48] focus:ring-2 focus:ring-[#0A7A48]/20 dark:text-white dark:[color-scheme:dark] font-bold transition-all" dir="ltr">
                         </div>
                     </div>
-                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                        <input type="checkbox" name="is_controlled" id="is_controlled" class="sr-only peer">
-                        <div class="w-10 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] rtl:after:right-[2px] ltr:after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500 shadow-inner"></div>
-                    </label>
                 </div>
-            </div>
 
-            <div class="p-5 border-t border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-900/50 shrink-0 flex justify-end gap-3 rounded-b-3xl">
-                <button type="button" onclick="closeModal()" class="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 font-bold hover:bg-white dark:hover:bg-slate-700 transition text-sm">
-                    <?php echo $lang['cancel']; ?>
-                </button>
-                <button type="submit" name="save_medicine" class="bg-[#0A7A48] hover:bg-[#044E29] text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-green-900/30 text-sm flex items-center gap-2">
-                    <i data-lucide="save" class="w-4 h-4"></i> <?php echo $lang['confirm']; ?>
-                </button>
-            </div>
-        </form>
+                <!-- الأزرار السفلية -->
+                <div class="mt-2 pt-5 border-t border-gray-200 dark:border-slate-700 flex flex-col-reverse md:flex-row justify-between items-center gap-3">
+                    <button type="button" onclick="closeModal()" class="w-full md:w-auto px-6 py-3 rounded-xl border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 font-bold hover:bg-white dark:hover:bg-slate-800 transition text-sm bg-transparent">
+                        إغلاق
+                    </button>
+
+                    <div class="flex w-full md:w-auto gap-3">
+                        <button type="button" id="backToSearchBtn" onclick="resetSearch()" class="w-full md:w-auto px-5 py-3 rounded-xl bg-white text-blue-600 dark:bg-slate-800 dark:text-blue-400 font-bold hover:bg-blue-50 dark:hover:bg-slate-700 transition text-sm flex items-center justify-center gap-2 border border-gray-200 dark:border-slate-700 shadow-sm">
+                            <i data-lucide="arrow-right" class="w-4 h-4"></i> عودة للكتالوج
+                        </button>
+
+                        <button type="submit" name="save_stock" class="w-full md:w-auto bg-[#0A7A48] hover:bg-[#044E29] text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-green-900/30 text-sm flex items-center justify-center gap-2 border border-transparent">
+                            <i data-lucide="save" class="w-4 h-4"></i> حفظ في المخزون
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
 <script>
-    // ==========================================
-    // 🚀 دالة جلب بيانات الجدول عبر AJAX بدون Reload
-    // ==========================================
     let fetchTimeoutId;
+    let searchSysTimeoutId;
 
     async function fetchTableData() {
         const body = document.getElementById('medicinesBody');
@@ -451,11 +549,9 @@ include('../includes/sidebar.php');
         const container = document.getElementById('tableContainer');
         const search = document.getElementById('searchInput').value;
 
-        // تأثير تحميل ناعم
-        container.style.opacity = '0.3';
+        container.style.opacity = '0.4';
         container.style.pointerEvents = 'none';
 
-        // تحديث الرابط في المتصفح بسلاسة
         const newUrl = `?search=${encodeURIComponent(search)}`;
         window.history.pushState({
             path: newUrl
@@ -464,76 +560,226 @@ include('../includes/sidebar.php');
         clearTimeout(fetchTimeoutId);
         fetchTimeoutId = setTimeout(async () => {
             try {
-                const response = await fetch(`medicines.php?ajax=1&search=${encodeURIComponent(search)}`);
+                const response = await fetch(`medicines.php?ajax_table=1&search=${encodeURIComponent(search)}`);
                 const data = await response.json();
 
                 body.innerHTML = data.html;
-                header.style.display = data.has_data ? '' : 'none';
+
+                if (header) {
+                    header.style.display = data.has_data ? '' : 'none';
+                }
 
                 lucide.createIcons();
-
             } catch (error) {
-                console.error("Error fetching medicines:", error);
+                console.error("Error fetching stock:", error);
             } finally {
                 container.style.opacity = '1';
                 container.style.pointerEvents = 'auto';
             }
         }, 300);
     }
-
-    // التحميل الأولي
     document.addEventListener('DOMContentLoaded', fetchTableData);
 
-    // منع الإدخال السالب
-    document.addEventListener('DOMContentLoaded', function() {
-        const numberInputs = document.querySelectorAll('input[type="number"]');
-        numberInputs.forEach(input => {
-            input.addEventListener('keydown', function(e) {
-                if (e.key === '-' || e.key === 'e' || e.key === 'E') {
-                    e.preventDefault();
+    function triggerSystemSearch() {
+        const query = document.getElementById('systemSearchInput').value;
+        const catId = document.getElementById('systemSearchCategory').value;
+        searchSystemMedicine(query, catId);
+    }
+
+    async function searchSystemMedicine(query, catId) {
+        const resultsBox = document.getElementById('systemSearchResults');
+        const resultsTitle = document.getElementById('resultsTitle');
+
+        if (query.length === 0 && catId == 0) {
+            resultsTitle.innerText = "أحدث الأدوية المضافة للكتالوج:";
+        } else {
+            resultsTitle.innerText = "نتائج البحث المخصصة:";
+        }
+
+        clearTimeout(searchSysTimeoutId);
+        searchSysTimeoutId = setTimeout(async () => {
+            try {
+                const res = await fetch(`medicines.php?search_system_med=${encodeURIComponent(query)}&cat_id=${catId}`);
+                const data = await res.json();
+
+                resultsBox.innerHTML = '';
+                if (data.length > 0) {
+                    data.forEach(med => {
+                        const rxBadge = med.IsControlled == 1 ? `<span class="bg-rose-100 text-rose-700 text-[8px] px-1 py-0.5 rounded uppercase font-black border border-rose-200">Rx</span>` : '';
+                        let imgSrc = med.Image;
+                        if (imgSrc && imgSrc !== 'default_med.png') {
+                            if (!imgSrc.startsWith('uploads/') && !imgSrc.startsWith('../uploads/')) imgSrc = `../uploads/${imgSrc}`;
+                            else if (imgSrc.startsWith('uploads/')) imgSrc = `../${imgSrc}`;
+                        } else {
+                            imgSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(med.Name)}&background=e2e8f0&color=475569`;
+                        }
+
+                        const medDataStr = JSON.stringify({
+                            id: med.SystemMedID,
+                            name: med.Name,
+                            scientific: med.ScientificName || '',
+                            img: imgSrc,
+                            rx: med.IsControlled,
+                            cat: med.CategoryName || 'غير مصنف',
+                            fixed_cost: med.FixedCostPrice
+                        }).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+
+                        resultsBox.innerHTML += `
+                            <li onclick="selectSystemMedicine('${medDataStr}')" class="p-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer flex items-center justify-between transition group">
+                                <div class="flex items-center gap-4">
+                                    <img src="${imgSrc}" class="w-12 h-12 rounded-xl object-cover border border-gray-200 dark:border-slate-600 bg-white shrink-0 shadow-sm">
+                                    <div>
+                                        <div class="flex items-center gap-2 mb-0.5">
+                                            <span class="font-black text-gray-800 dark:text-white text-base">${med.Name}</span>
+                                            ${rxBadge}
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-xs text-gray-500 font-bold">${med.ScientificName || ''}</span>
+                                            <span class="bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-300 text-[10px] px-2 py-0.5 rounded-md border border-gray-200 dark:border-slate-600 font-bold">${med.CategoryName || 'غير مصنف'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-xs font-black text-gray-400 group-hover:text-[#0A7A48] transition-colors bg-gray-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-slate-700" dir="ltr">التكلفة: ${med.FixedCostPrice} ₪</div>
+                            </li>
+                        `;
+                    });
+                } else {
+                    resultsBox.innerHTML = `
+                        <li class="p-8 text-center flex flex-col items-center bg-gray-50/50 dark:bg-slate-800/30 rounded-xl m-2 border border-dashed border-gray-200 dark:border-slate-700 transition-all">
+                            <div class="relative w-20 h-20 mb-5">
+                                <div class="absolute inset-0 bg-[#0A7A48] rounded-full opacity-20 animate-ping"></div>
+                                <div class="relative flex items-center justify-center w-full h-full bg-[#E6F7ED] dark:bg-[#044E29]/40 rounded-full shadow-inner border border-[#0A7A48]/10 dark:border-[#4ADE80]/10">
+                                    <i data-lucide="package-search" class="w-8 h-8 text-[#0A7A48] dark:text-[#4ADE80]"></i>
+                                </div>
+                            </div>
+                            <span class="text-sm font-black text-gray-700 dark:text-gray-300 mb-1.5">لم يتم العثور على أدوية مطابقة.</span>
+                            <span class="text-xs font-bold text-gray-400">تأكد من الاسم، أو قد يكون هذا الدواء موجوداً مسبقاً في مخزونك.</span>
+                        </li>
+                    `;
+                    lucide.createIcons();
                 }
-            });
-            input.addEventListener('input', function() {
-                if (this.value < 0) {
-                    this.value = Math.abs(this.value);
-                }
-            });
-        });
-    });
+                resultsBox.classList.remove('hidden');
+            } catch (e) {
+                console.error(e);
+            }
+        }, 300);
+    }
 
     const modal = document.getElementById('medicineModal');
-    const langAddProduct = "<?php echo $lang['add_new_product']; ?>";
-    const langEditProduct = "<?php echo $lang['edit_product']; ?>";
 
     function openModal() {
-        document.getElementById('medicine_id').value = "";
-        document.getElementById('name').value = "";
-        document.getElementById('category_id').value = "";
+        document.getElementById('modalTitleText').innerText = "إضافة دواء جديد للمخزون";
+
+        document.getElementById('stock_id').value = "";
+        document.getElementById('system_med_id').value = "";
         document.getElementById('price').value = "";
         document.getElementById('cost').value = "";
         document.getElementById('stock').value = "";
         document.getElementById('min_stock').value = "10";
         document.getElementById('expiry').value = "";
-        document.getElementById('description').value = "";
-        document.getElementById('is_controlled').checked = false;
+        document.getElementById('systemSearchInput').value = "";
+        document.getElementById('systemSearchCategory').value = "0";
 
-        document.getElementById('modalTitleText').innerText = langAddProduct;
+        document.getElementById('dynamicMargin').innerText = "الربح: 0%";
+        document.getElementById('dynamicMargin').className = "text-[10px] font-black text-gray-400 transition-colors";
+
+        document.getElementById('searchSection').classList.remove('hidden');
+        document.getElementById('selectedMedicineCard').classList.add('hidden');
+        document.getElementById('stockForm').classList.add('hidden');
+        document.getElementById('backToSearchBtn').classList.remove('hidden');
+        document.getElementById('systemSearchResults').classList.remove('hidden');
+
         modal.classList.remove('hidden');
+        setTimeout(() => document.getElementById('systemSearchInput').focus(), 100);
+
+        triggerSystemSearch();
     }
 
-    function editModal(med) {
-        document.getElementById('medicine_id').value = med.MedicineID;
-        document.getElementById('name').value = med.Name;
-        document.getElementById('category_id').value = med.CategoryID;
-        document.getElementById('price').value = med.Price;
-        document.getElementById('cost').value = med.CostPrice;
-        document.getElementById('stock').value = med.Stock;
-        document.getElementById('min_stock').value = med.MinimumStock;
-        document.getElementById('expiry').value = med.ExpiryDate;
-        document.getElementById('description').value = med.Description;
-        document.getElementById('is_controlled').checked = med.IsControlled == 1 ? true : false;
+    function resetSearch() {
+        document.getElementById('searchSection').classList.remove('hidden');
+        document.getElementById('selectedMedicineCard').classList.add('hidden');
+        document.getElementById('stockForm').classList.add('hidden');
+        setTimeout(() => document.getElementById('systemSearchInput').focus(), 100);
+    }
 
-        document.getElementById('modalTitleText').innerText = langEditProduct;
+    function calculateMargin() {
+        let cost = parseFloat(document.getElementById('cost').value) || 0;
+        let price = parseFloat(document.getElementById('price').value) || 0;
+        let marginSpan = document.getElementById('dynamicMargin');
+
+        if (price > cost && cost > 0) {
+            let margin = Math.round(((price - cost) / price) * 100);
+            marginSpan.innerText = `الربح: ${margin}%`;
+            marginSpan.className = "text-[10px] font-black text-emerald-500 animate-pulse";
+        } else if (price < cost && price > 0) {
+            marginSpan.innerText = `خسارة!`;
+            marginSpan.className = "text-[10px] font-black text-rose-500 animate-pulse";
+        } else {
+            marginSpan.innerText = `الربح: 0%`;
+            marginSpan.className = "text-[10px] font-black text-gray-400 transition-colors";
+        }
+    }
+
+    document.getElementById('price').addEventListener('input', calculateMargin);
+
+    function selectSystemMedicine(dataStr) {
+        const med = JSON.parse(dataStr);
+
+        document.getElementById('system_med_id').value = med.id;
+        document.getElementById('selMedImg').src = med.img;
+        document.getElementById('selMedName').innerText = med.name;
+        document.getElementById('selMedScientific').innerText = med.scientific;
+        document.querySelector('#selMedCategory span').innerText = med.cat;
+
+        document.getElementById('cost').value = med.fixed_cost;
+        document.getElementById('price').value = "";
+        calculateMargin();
+
+        if (med.rx == 1) document.getElementById('selMedRx').classList.remove('hidden');
+        else document.getElementById('selMedRx').classList.add('hidden');
+
+        document.getElementById('searchSection').classList.add('hidden');
+        document.getElementById('selectedMedicineCard').classList.remove('hidden');
+        document.getElementById('stockForm').classList.remove('hidden');
+
+        setTimeout(() => document.getElementById('price').focus(), 100);
+        lucide.createIcons();
+    }
+
+    // 🚀 الدالة المصححة بالكامل هنا
+    function editModal(stock) {
+        document.getElementById('modalTitleText').innerText = "تعديل بيانات المخزون";
+
+        document.getElementById('stock_id').value = stock.StockID;
+        document.getElementById('system_med_id').value = stock.SystemMedID;
+        document.getElementById('price').value = stock.Price;
+
+        // نجلب السعر المحدث من الـ DB للحماية
+        document.getElementById('cost').value = stock.FixedCostPrice;
+        document.getElementById('stock').value = stock.Stock;
+        document.getElementById('min_stock').value = stock.MinimumStock;
+        document.getElementById('expiry').value = stock.ExpiryDate;
+
+        // نحسب الربح فوراً ليرى الصيدلاني نسبته الحالية
+        calculateMargin();
+
+        document.getElementById('selMedImg').src = stock.Image;
+        document.getElementById('selMedName').innerText = stock.Name;
+        document.getElementById('selMedScientific').innerText = stock.ScientificName || '';
+        document.querySelector('#selMedCategory span').innerText = stock.CategoryName || 'غير مصنف';
+
+        if (stock.IsControlled == 1) document.getElementById('selMedRx').classList.remove('hidden');
+        else document.getElementById('selMedRx').classList.add('hidden');
+
+        document.getElementById('searchSection').classList.add('hidden');
+
+        // 🚀 تم الإصلاح هنا (إخفاء زر العودة للبحث)
+        document.getElementById('backToSearchBtn').classList.add('hidden');
+
+        document.getElementById('selectedMedicineCard').classList.remove('hidden');
+        document.getElementById('stockForm').classList.remove('hidden');
+
+        lucide.createIcons();
         modal.classList.remove('hidden');
     }
 
@@ -541,37 +787,33 @@ include('../includes/sidebar.php');
         modal.classList.add('hidden');
     }
 
-    function updateFileName(input) {
-        const displayElement = document.getElementById('file-name-display');
-        if (input.files && input.files.length > 0) {
-            displayElement.innerText = "تم اختيار: " + input.files[0].name;
-            displayElement.classList.remove('text-gray-500');
-            displayElement.classList.add('text-[#0A7A48]', 'dark:text-[#4ADE80]');
-        } else {
-            displayElement.innerText = "اضغط هنا لرفع الصورة";
-            displayElement.classList.add('text-gray-500');
-            displayElement.classList.remove('text-[#0A7A48]', 'dark:text-[#4ADE80]');
-        }
-    }
-
     function confirmDelete(id) {
         Swal.fire({
-            title: Lang.title,
-            text: Lang.text,
+            title: 'إزالة الدواء من المخزون؟',
+            text: 'لن تتمكن من التراجع عن هذا، وسيتم مسحه من قائمة أدويتك المعروضة للمرضى.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#6b7280',
-            confirmButtonText: Lang.confirm,
-            cancelButtonText: Lang.cancel,
-            background: Lang.isDark ? '#1e293b' : '#fff',
-            color: Lang.isDark ? '#f8fafc' : '#1f2937'
+            confirmButtonText: 'نعم، إزالة',
+            cancelButtonText: 'إلغاء',
+            background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#fff',
+            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1f2937'
         }).then((result) => {
             if (result.isConfirmed) {
                 window.location.href = 'medicines.php?delete=' + id;
             }
         });
     }
+
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault();
+        });
+        input.addEventListener('input', function() {
+            if (this.value < 0) this.value = Math.abs(this.value);
+        });
+    });
 </script>
 
 <?php include('../includes/footer.php'); ?>
