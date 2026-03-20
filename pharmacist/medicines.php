@@ -172,28 +172,27 @@ if (isset($_GET['ajax_table'])) {
             ]), ENT_QUOTES, 'UTF-8');
 ?>
             <tr class="hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 border-b border-transparent hover:border-gray-100 dark:hover:border-slate-700">
-                <td class="p-4 flex items-center gap-3">
-                    <img src="<?php echo $imgSrc; ?>" class="w-12 h-12 rounded-xl object-cover border border-gray-200 dark:border-slate-600 bg-white">
-                    <div>
-                        <div class="flex items-center gap-2 mb-0.5">
-                            <span class="font-black text-gray-800 dark:text-white"><?php echo htmlspecialchars($med['Name']); ?></span>
-                            <?php if ($med['IsControlled']): ?>
-                                <span class="bg-rose-100 text-rose-700 text-[9px] px-1.5 py-0.5 rounded uppercase font-black border border-rose-200 dark:bg-rose-900/40 dark:text-rose-400 dark:border-rose-800 tracking-widest">Rx</span>
-                            <?php endif; ?>
-                        </div>
+                <td class="p-4 items-center gap-3">
+                    <div class="flex items-center gap-3 mb-1.5">
+                        <span class="font-black text-gray-800 dark:text-white"><?php echo htmlspecialchars($med['Name']); ?></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <?php if ($med['IsControlled']): ?>
+                            <span class="bg-amber-100 text-amber-700 text-[9px] px-1.5 py-0.5 rounded-full uppercase font-black border border-amber-200 dark:bg-amber-900/40 dark:text-amber-400 dark:border-amber-800 tracking-widest">Rx</span>
+                        <?php endif; ?>
                         <span class="text-[11px] font-bold text-gray-500 block"><?php echo htmlspecialchars($med['ScientificName'] ?? ''); ?></span>
                     </div>
                 </td>
                 <td class="p-4 text-gray-500 dark:text-gray-400 font-medium">
-                    <span class="bg-gray-100 dark:bg-slate-700 px-2.5 py-1 rounded-md text-xs font-bold">
+                    <span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded-full text-xs font-bold">
                         <?php echo htmlspecialchars($med['CategoryName'] ?? 'غير مصنف'); ?>
                     </span>
                 </td>
                 <td class="p-4 text-center">
                     <?php if ($med['Stock'] <= $med['MinimumStock']): ?>
-                        <span class="bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 px-3 py-1.5 rounded-lg font-black text-sm inline-block min-w-[40px] shadow-sm border border-rose-200 dark:border-rose-800/50"><?php echo $med['Stock']; ?></span>
+                        <span class="bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 px-3 py-1.5 rounded-full font-black text-sm inline-block min-w-[40px] shadow-sm border border-rose-200 dark:border-rose-800/50"><?php echo $med['Stock']; ?></span>
                     <?php else: ?>
-                        <span class="bg-[#E6F7ED] text-[#0A7A48] dark:bg-[#044E29]/50 dark:text-[#4ADE80] px-3 py-1.5 rounded-lg font-black text-sm inline-block min-w-[40px] shadow-sm border border-transparent dark:border-[#0A7A48]/30"><?php echo $med['Stock']; ?></span>
+                        <span class="bg-[#E6F7ED] text-[#0A7A48] dark:bg-[#044E29]/50 dark:text-[#4ADE80] px-3 py-1.5 rounded-full font-black text-sm inline-block min-w-[40px] shadow-sm border border-transparent dark:border-[#0A7A48]/30"><?php echo $med['Stock']; ?></span>
                     <?php endif; ?>
                 </td>
                 <td class="p-4 font-black text-gray-800 dark:text-white text-[15px]"><span dir="ltr"><?php echo $med['Price']; ?> ₪</span></td>
@@ -410,7 +409,7 @@ include('../includes/sidebar.php');
         <!-- الهيدر -->
         <div class="px-6 py-5 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
             <h2 id="modalTitle" class="text-xl font-black text-gray-800 dark:text-white flex items-center gap-3">
-                <div class="p-2 bg-[#E6F7ED] dark:bg-[#044E29]/40 rounded-lg text-[#0A7A48] dark:text-[#4ADE80] shadow-sm">
+                <div class="p-2 text-[#0A7A48] dark:text-[#4ADE80]">
                     <i data-lucide="briefcase-medical" class="w-5 h-5"></i>
                 </div>
                 <span id="modalTitleText">إضافة دواء للمخزون</span>
@@ -465,12 +464,14 @@ include('../includes/sidebar.php');
             <div id="selectedMedicineCard" class="hidden mb-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-5 rounded-2xl flex items-start gap-4 relative shadow-sm">
                 <img id="selMedImg" src="" class="w-20 h-20 rounded-xl object-cover border border-gray-200 dark:border-slate-600 bg-gray-50 shadow-sm shrink-0">
                 <div>
-                    <div class="flex items-center gap-2 mb-1.5 mt-1">
+                    <div class="flex items-center gap-2 mb-1.5">
                         <h3 id="selMedName" class="font-black text-gray-800 dark:text-white text-xl"></h3>
-                        <span id="selMedRx" class="hidden bg-rose-100 text-rose-700 text-[10px] px-1.5 py-0.5 rounded uppercase font-black border border-rose-200 dark:bg-rose-900/40 dark:border-rose-800 dark:text-rose-400 tracking-widest shadow-sm">Rx</span>
                     </div>
-                    <p id="selMedScientific" class="text-sm font-bold text-gray-500 mb-2.5"></p>
-                    <span id="selMedCategory" class="bg-gray-50 dark:bg-slate-900 text-gray-600 dark:text-gray-300 text-xs px-2.5 py-1 rounded-md border border-gray-200 dark:border-slate-700 font-bold inline-flex items-center gap-1.5"><i data-lucide="tag" class="w-3 h-3 text-[#0A7A48]"></i> <span></span></span>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span id="selMedRx" class="hidden bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded-full uppercase font-black border border-amber-200 dark:bg-amber-900/40 dark:border-amber-800 dark:text-amber-400 tracking-widest shadow-sm">Rx</span>
+                        <p id="selMedScientific" class="text-sm text-gray-500 font-bold"></p>
+                    </div>
+                    <span id="selMedCategory" class="bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 text-xs px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-700 font-bold inline-flex items-center gap-1.5"><span></span></span>
                 </div>
             </div>
 
@@ -606,7 +607,6 @@ include('../includes/sidebar.php');
                 if (data.length > 0) {
                     data.forEach(med => {
                         const rxBadge = med.IsControlled == 1 ? `<span class="bg-rose-100 text-rose-700 text-[8px] px-1 py-0.5 rounded uppercase font-black border border-rose-200">Rx</span>` : '';
-                        let imgSrc = med.Image;
                         if (imgSrc && imgSrc !== 'default_med.png') {
                             if (!imgSrc.startsWith('uploads/') && !imgSrc.startsWith('../uploads/')) imgSrc = `../uploads/${imgSrc}`;
                             else if (imgSrc.startsWith('uploads/')) imgSrc = `../${imgSrc}`;

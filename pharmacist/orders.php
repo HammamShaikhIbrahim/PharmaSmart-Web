@@ -17,7 +17,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role_id'] != 2) {
 $pharmacist_id = $_SESSION['user_id'];
 
 // ==========================================
-// 2. معالجة تحديث حالة الطلب (Actions) مع سبب الرفض
+// 2. معالجة تحديث حالة الطلب (Actions) مع سبب الرفض وخصم المخزون
 // ==========================================
 
 if (isset($_GET['action']) && isset($_GET['order_id'])) {
@@ -35,13 +35,25 @@ if (isset($_GET['action']) && isset($_GET['order_id'])) {
         if ($action == 'Rejected') {
             mysqli_query($conn, "UPDATE `Order` SET Status = '$action', RejectionReason = '$reason' WHERE OrderID = $order_id");
         } else {
-            // لباقي الإجراءات (قبول، توصيل) نقوم بتحديث الحالة فقط
+            // تحديث الحالة لباقي الإجراءات
             mysqli_query($conn, "UPDATE `Order` SET Status = '$action' WHERE OrderID = $order_id");
         }
 
         // في حال القبول، يتم تأكيد الوصفة الطبية
         if ($action == 'Accepted') {
             mysqli_query($conn, "UPDATE Prescription SET IsVerified = 1 WHERE OrderID = $order_id");
+        }
+
+        // 🚀 خصم المخزون فقط عندما يتم التوصيل بنجاح
+        if ($action == 'Delivered') {
+            // جلب جميع الأدوية التابعة لهذا الطلب
+            $items_query = mysqli_query($conn, "SELECT StockID, Quantity FROM OrderItems WHERE OrderID = $order_id");
+            while ($item = mysqli_fetch_assoc($items_query)) {
+                $stock_id = $item['StockID'];
+                $quantity = $item['Quantity'];
+                // خصم الكمية (مع التأكد أن المخزون لا يصبح بالسالب)
+                mysqli_query($conn, "UPDATE PharmacyStock SET Stock = GREATEST(Stock - $quantity, 0) WHERE StockID = $stock_id");
+            }
         }
 
         header("Location: orders.php");
@@ -389,13 +401,16 @@ include('../includes/sidebar.php');
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(100, 116, 139, 0.15); /* لون رمادي خفيف جداً للحالة غير الفعالة */
+        background: rgba(100, 116, 139, 0.15);
+        /* لون رمادي خفيف جداً للحالة غير الفعالة */
         padding: 2px 8px;
         border-radius: 12px;
         font-size: 11px;
         font-weight: 900;
-        color: #64748b; /* نفس لون النص غير الفعال */
-        transition: all 0.4s ease; /* حركة ناعمة لتغيير اللون */
+        color: #64748b;
+        /* نفس لون النص غير الفعال */
+        transition: all 0.4s ease;
+        /* حركة ناعمة لتغيير اللون */
     }
 
     /* العداد في الوضع الليلي للحالة غير الفعالة */
@@ -409,8 +424,9 @@ include('../includes/sidebar.php');
         background: rgba(255, 255, 255, 0.3);
         color: #ffffff;
         backdrop-filter: blur(4px);
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
+
     /* شريط الانزلاق معدل ليناسب 5 فلاتر */
     .glass-glider {
         position: absolute;
@@ -561,10 +577,17 @@ include('../includes/sidebar.php');
 
 <!-- البطاقة المنبثقة للطلب (المودال) -->
 <div id="orderModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[100] hidden flex justify-center items-center transition-opacity p-4">
-    <div id="modalContentWrapper" class="bg-gray-50 dark:bg-slate-900 w-full max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row transform transition-all border border-gray-200 dark:border-slate-700">
+
+    <!-- 🚀 التعديل هنا: الحاوية الأم أخذت لون الثيم الأساسي مع overflow-hidden لضمان تطابق الحواف الدائرية -->
+    <div id="modalContentWrapper" class="bg-white dark:bg-slate-900 w-full max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row transform transition-all border border-gray-200 dark:border-slate-700 relative">
+
+        <!-- 🚀 زر الإغلاق الجديد: موقعه عائم وثابت في زاوية المودال بغض النظر عن المحتوى -->
+        <button onclick="closeOrderModal()" class="absolute top-5 rtl:left-5 ltr:right-5 flex items-center justify-center w-8 h-8 rounded-full bg-gray-100/80 text-gray-500 hover:bg-rose-500 hover:text-white dark:bg-slate-800/80 dark:text-gray-400 dark:hover:bg-rose-500 dark:hover:text-white backdrop-blur-sm transition-all shadow-sm z-50">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
 
         <!-- الجانب الأيمن: الفاتورة والمنتجات -->
-        <div id="invoiceSection" class="flex-1 flex flex-col bg-white dark:bg-slate-800 relative z-10 w-full transition-all duration-300">
+        <div id="invoiceSection" class="flex-1 flex flex-col relative z-10 w-full transition-all duration-300">
 
             <div id="modalHeader" class="p-5 border-b border-gray-100 dark:border-slate-700 transition-colors relative overflow-hidden">
                 <div class="flex justify-between items-start relative z-10">
@@ -576,20 +599,14 @@ include('../includes/sidebar.php');
                         <p id="modalOrderDate" class="text-xs text-gray-500 font-bold mt-1" dir="ltr"></p>
                     </div>
 
-                    <!-- 💡 الختم الديناميكي (يتغير لونه ونصه حسب الحالة) -->
+                    <!-- الختم الديناميكي -->
                     <div id="statusStamp" class="hidden absolute top-0 left-1/2 transform -translate-x-1/2 rotate-[-10deg] border-4 font-black text-2xl px-5 py-1 rounded-xl opacity-20 select-none pointer-events-none uppercase tracking-widest">
                     </div>
-
-                    <!-- زر الإغلاق -->
-                    <button onclick="closeOrderModal()" class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-rose-500 hover:text-white dark:bg-slate-700 dark:text-gray-400 dark:hover:bg-rose-500 dark:hover:text-white transition-all shadow-sm z-20 relative">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
                 </div>
             </div>
 
             <div class="p-5 overflow-y-auto modal-scroll flex-1 space-y-5 relative">
-
-                <!-- 💡 تنبيه سبب الرفض (يظهر فقط في حالة الرفض) -->
+                <!-- تنبيه سبب الرفض -->
                 <div id="rejectionAlert" class="hidden bg-rose-50 dark:bg-rose-900/20 border-l-4 border-rose-500 p-4 rounded-xl">
                     <div class="flex items-start gap-3">
                         <i data-lucide="info" class="w-5 h-5 text-rose-500 shrink-0 mt-0.5"></i>
@@ -601,31 +618,25 @@ include('../includes/sidebar.php');
                 </div>
 
                 <!-- بيانات العميل والخريطة -->
-                <div class="bg-[#F2FBF5] dark:bg-[#044E29]/20 p-4 rounded-2xl border border-[#0A7A48]/10 dark:border-[#4ADE80]/10">
+                <div class="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-100 dark:border-slate-700/50">
                     <div class="flex items-center gap-3 mb-3">
-                        <!-- أيقونة المستخدم -->
-                        <div class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm shrink-0">
+                        <div class="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm shrink-0">
                             <i data-lucide="user" class="w-5 h-5 text-[#0A7A48] dark:text-[#4ADE80]"></i>
                         </div>
-
-                        <!-- 💡 التعديل هنا: الاسم ورقم الهاتف بجانب بعضهما -->
-                        <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                        <div class="flex flex-col gap-1">
                             <h3 id="modalPatientName" class="font-bold text-gray-800 dark:text-white text-sm"></h3>
-
-                            <!-- شريحة رقم الهاتف مع الأيقونة -->
-                            <div class="flex items-center gap-1.5 bg-white dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-600 shadow-sm">
+                            <div class="flex items-center gap-1.5">
                                 <i data-lucide="phone" class="w-3 h-3 text-[#0A7A48] dark:text-[#4ADE80]"></i>
                                 <span id="modalPatientPhone" class="text-xs text-gray-600 dark:text-gray-300 font-bold tracking-wide" dir="ltr"></span>
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-start gap-2 pt-3 border-t border-[#0A7A48]/10 dark:border-slate-700/50">
-                        <i data-lucide="map-pin" class="w-4 h-4 text-[#0A7A48]/70 mt-0.5 shrink-0"></i>
+                    <div class="flex items-start gap-2 pt-3 border-t border-gray-200 dark:border-slate-700">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-[#0A7A48] dark:text-[#4ADE80]"></i>
                         <p id="modalPatientAddress" class="text-sm font-bold text-gray-600 dark:text-gray-300 leading-relaxed"></p>
                     </div>
-
                     <!-- خريطة موقع التوصيل -->
-                    <div id="mapWrapper" class="hidden mt-3 rounded-xl overflow-hidden border border-[#0A7A48]/20 dark:border-[#4ADE80]/20 h-32 w-full relative z-0 shadow-inner">
+                    <div id="mapWrapper" class="hidden mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-slate-600 h-32 w-full relative z-0 shadow-inner">
                         <div id="deliveryMap" class="absolute inset-0"></div>
                     </div>
                     <p id="noLocationMsg" class="hidden mt-2 text-xs text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
@@ -635,13 +646,13 @@ include('../includes/sidebar.php');
 
                 <!-- المشتريات -->
                 <div>
-                    <h3 class="text-xs font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wider"><?php echo isset($lang['purchases']) ? $lang['purchases'] : 'المشتريات'; ?></h3>
+                    <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-3"><?php echo isset($lang['purchases']) ? $lang['purchases'] : 'المشتريات'; ?></h3>
                     <div class="space-y-2" id="modalItemsList"></div>
                 </div>
             </div>
 
             <!-- الفوتر (المبلغ والأزرار) -->
-            <div id="modalFooter" class="p-5 border-t border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800">
+            <div id="modalFooter" class="p-5 border-t border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-900/50">
                 <div class="flex justify-between items-end mb-4">
                     <span class="text-sm font-bold text-gray-500"><?php echo isset($lang['total_required']) ? $lang['total_required'] : 'الإجمالي المطلوب:'; ?></span>
                     <h2 id="modalTotalAmount" class="text-2xl font-black text-gray-900 dark:text-white" dir="ltr"></h2>
@@ -650,25 +661,25 @@ include('../includes/sidebar.php');
             </div>
         </div>
 
-        <!-- الجانب الأيسر: الوصفة الطبية (يظهر فقط في حالة 1 و 2) -->
-        <div id="prescriptionSection" class="hidden flex-1 flex-col bg-gray-50 dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 w-full md:w-1/2 transition-all duration-300">
-            <div id="rxHeader" class="p-5 border-b border-gray-200 dark:border-slate-700 flex items-center gap-3">
+        <!-- الجانب الأيسر: الوصفة الطبية (🚀 التعديل هنا: ثيم Amber متناسق) -->
+        <div id="prescriptionSection" class="hidden flex-1 flex-col bg-amber-50/30 dark:bg-amber-900/10 rtl:border-r ltr:border-l border-gray-200 dark:border-slate-700 w-full md:w-1/2 transition-all duration-300 relative">
+            <div id="rxHeader" class="p-5 border-b border-amber-100 dark:border-slate-700/50 flex items-center gap-3">
                 <!-- يُحقن بواسطة الجافاسكربت -->
             </div>
             <div class="flex-1 p-5 flex flex-col items-center justify-center overflow-y-auto modal-scroll">
 
-                <!-- 💡 إضافة onerror للصورة لعدم ظهور الصورة المكسورة -->
-                <a id="prescriptionImgLink" href="#" target="_blank" class="block w-full max-w-[250px] relative group rounded-xl overflow-hidden border-4 border-white dark:border-slate-800 shadow-lg mb-4 bg-gray-200 dark:bg-slate-800">
+                <!-- 🚀 تأثير Ring بلون Amber عند مرور الماوس -->
+                <a id="prescriptionImgLink" href="#" target="_blank" class="block w-full max-w-[250px] relative group rounded-xl overflow-hidden border-4 border-white dark:border-slate-800 shadow-lg mb-4 bg-gray-200 dark:bg-slate-800 ring-2 ring-transparent group-hover:ring-amber-400 transition-all duration-300">
                     <img id="prescriptionImg" src="" onerror="this.src='https://placehold.co/400x600/e2e8f0/475569?text=صورة+غير+متوفرة';" alt="Prescription" class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-110 min-h-[150px]">
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <i data-lucide="zoom-in" class="text-white w-8 h-8"></i>
+                    <div class="absolute inset-0 bg-amber-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                        <i data-lucide="zoom-in" class="text-white w-8 h-8 drop-shadow-md"></i>
                     </div>
                 </a>
 
-                <div id="rxCheckboxContainer" class="w-full max-w-[250px] bg-white dark:bg-slate-800 p-3 rounded-xl border shadow-sm transition-opacity duration-300">
+                <!-- 🚀 Checkbox بلون Amber -->
+                <div id="rxCheckboxContainer" class="w-full max-w-[250px] bg-white dark:bg-slate-800 p-3 rounded-xl border border-amber-100 dark:border-slate-700 shadow-sm transition-opacity duration-300">
                     <div class="flex items-start gap-2">
-                        <!-- 💡 تم إضافة الكلاس disabled:opacity-50 disabled:cursor-not-allowed -->
-                        <input type="checkbox" id="verifyPrescriptionCheck" class="w-4 h-4 text-rose-600 rounded border-gray-300 focus:ring-rose-500 mt-0.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <input type="checkbox" id="verifyPrescriptionCheck" class="w-4 h-4 text-amber-500 rounded border-gray-300 focus:ring-amber-500 accent-amber-500 mt-0.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                         <label for="verifyPrescriptionCheck" class="text-xs font-bold text-gray-800 dark:text-gray-200 cursor-pointer select-none leading-tight">
                             أقر بأني راجعت الوصفة الطبية وصحتها.
                         </label>
@@ -894,10 +905,14 @@ include('../includes/sidebar.php');
             document.getElementById('prescriptionImgLink').href = imgUrl;
 
             if (order.has_controlled) {
+                // 🚀 حقن ترويسة بثيم Amber للأدوية المراقبة
                 rxHeader.innerHTML = `
-                    <div class="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-lg text-rose-600 dark:text-rose-400"><i data-lucide="alert-octagon" class="w-4 h-4"></i></div>
+                    <div class="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg text-amber-600 dark:text-amber-400">
+                        <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                    </div>
                     <div>
-                        <h3 class="font-black text-rose-800 dark:text-rose-400 text-sm">أدوية مراقبة (Rx)</h3>
+                        <h3 class="font-black text-amber-800 dark:text-amber-400 text-sm">أدوية مراقبة (Rx)</h3>
+                        <p class="text-[10px] text-amber-600/80 dark:text-amber-500/80 font-bold">يلزم التحقق من الوصفة</p>
                     </div>
                 `;
                 rxCheckboxContainer.classList.remove('hidden');
@@ -910,10 +925,13 @@ include('../includes/sidebar.php');
                 }
 
             } else {
+                // 🚀 حقن ترويسة هادئة للوصفات العادية المرفقة
                 rxHeader.innerHTML = `
-                    <div class="p-2 bg-[#E6F7ED] dark:bg-[#044E29]/40 rounded-lg text-[#0A7A48] dark:text-[#4ADE80]"><i data-lucide="file-text" class="w-4 h-4"></i></div>
+                    <div class="p-2 bg-gray-100 dark:bg-slate-800 rounded-lg text-gray-600 dark:text-gray-400">
+                        <i data-lucide="file-text" class="w-5 h-5"></i>
+                    </div>
                     <div>
-                        <h3 class="font-black text-gray-800 dark:text-white text-sm">مرفق إضافي (وصفة)</h3>
+                        <h3 class="font-black text-gray-800 dark:text-gray-200 text-sm">مرفق إضافي (وصفة)</h3>
                     </div>
                 `;
                 rxCheckboxContainer.classList.add('hidden');
