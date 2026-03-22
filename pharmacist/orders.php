@@ -167,7 +167,7 @@ if ($has_orders) {
             $current_items = $order_items_data[$order['OrderID']] ??[];
             $has_controlled = array_reduce($current_items, fn($carry, $item) => $carry || $item['IsControlled'] == 1, false);
 
-            // حساب الإجمالي المحسوب بناءً على الأصناف الحالية في الطلب (بعد أي تعديلات محتملة)
+            // التعديل الهام هنا: الاعتماد على الجمع الحي للأدوية الموجودة فقط لحل مشكلة الأسعار القديمة
             $calculated_total = 0;
             foreach ($current_items as $c_item) {
                 $calculated_total += ($c_item['Quantity'] * $c_item['SoldPrice']);
