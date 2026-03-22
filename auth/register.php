@@ -219,7 +219,9 @@ if (isset($_POST['register'])) {
                                 <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5"><?php echo $lang['working_hours']; ?></label>
                                 <input type="text" name="workingHours" required placeholder="08:00 AM - 10:00 PM" class="w-full h-11 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-xl px-4 text-sm font-bold focus:border-emerald-500 outline-none transition">
                             </div>
-                            
+                             <!-- ========================================== -->
+    <!-- 1. القسم التعريفي (1/3 - ثابت) -->
+    <!-- ========================================== -->
                             <div class="md:col-span-2">
                                 <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5"><?php echo $lang['pharmacy_logo']; ?></label>
                                 <label class="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 cursor-pointer hover:border-emerald-500 transition group">
@@ -257,13 +259,16 @@ if (isset($_POST['register'])) {
                 </form>
 
                 <div class="mt-8 text-center text-sm font-bold text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-slate-700 pt-6">
-                    <?php echo $lang['already_have_account'];
-                     ?> 
+                    <?php echo $lang['already_have_account']; ?> 
                     <a href="login.php" class="text-emerald-600 dark:text-emerald-400 font-black hover:underline mx-1"><?php echo $lang['login_link']; ?></a>
                 </div>
 
             </div>
         </div>
+
+         <!-- ========================================== -->
+    <!-- 1. القسم التعريفي (1/3 - ثابت) -->
+    <!-- ========================================== -->
 
     </div>
 
