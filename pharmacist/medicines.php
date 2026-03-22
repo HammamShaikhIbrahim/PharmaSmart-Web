@@ -536,7 +536,7 @@ include('../includes/sidebar.php');
                     </div>
                 </div>
 
-                <!-- الأزرار السفلية -->
+                <!-- الأزرار. السفلية -->
                 <div class="mt-2 pt-5 border-t border-gray-200 dark:border-slate-700 flex flex-col-reverse md:flex-row justify-between items-center gap-3">
                     <button type="button" onclick="closeModal()" class="w-full md:w-auto px-6 py-3 rounded-xl border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 font-bold hover:bg-white dark:hover:bg-slate-800 transition text-sm bg-transparent">
                         إغلاق
