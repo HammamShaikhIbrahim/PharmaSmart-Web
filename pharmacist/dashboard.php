@@ -12,7 +12,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role_id'] != 2) {
 $pharmacist_id = $_SESSION['user_id'];
 
 // ==========================================
-// 1. الإحصائيات السريعة (Quick Stats)
+// 1. الإحصائيات السريعة
 // ==========================================
 $salesQuery = "SELECT SUM(oi.Quantity * oi.SoldPrice) as TotalSales FROM OrderItems oi JOIN PharmacyStock ps ON oi.StockID = ps.StockID JOIN `Order` o ON oi.OrderID = o.OrderID WHERE ps.PharmacistID = $pharmacist_id AND DATE(o.OrderDate) = CURDATE() AND o.Status = 'Delivered'";
 $salesResult = mysqli_fetch_assoc(mysqli_query($conn, $salesQuery));
@@ -24,11 +24,12 @@ $pendingOrders = mysqli_fetch_assoc(mysqli_query($conn, $ordersQuery))['PendingC
 $lowStockQuery = "SELECT COUNT(*) as LowStockCount FROM PharmacyStock WHERE PharmacistID = $pharmacist_id AND Stock <= MinimumStock";
 $lowStockCount = mysqli_fetch_assoc(mysqli_query($conn, $lowStockQuery))['LowStockCount'];
 
-$expiryQuery = "SELECT COUNT(*) as ExpiringCount FROM PharmacyStock WHERE PharmacistID = $pharmacist_id AND ExpiryDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)";
+// 💡 التعديل هنا: جلب بناءً على الأشهر المحددة من قبل الصيدلاني في قاعدة البيانات
+$expiryQuery = "SELECT COUNT(*) as ExpiringCount FROM PharmacyStock WHERE PharmacistID = $pharmacist_id AND ExpiryDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ExpiryAlertMonths MONTH)";
 $expiringCount = mysqli_fetch_assoc(mysqli_query($conn, $expiryQuery))['ExpiringCount'];
 
 // ==========================================
-// 2. جلب الطلبات الأخيرة (الجدول العريض) وتفاصيل أدويتها
+// 2. الطلبات الأخيرة
 // ==========================================
 $recentOrdersQ = "
     SELECT DISTINCT
@@ -43,7 +44,6 @@ $recentOrdersQ = "
 ";
 $recentOrdersResult = mysqli_query($conn, $recentOrdersQ);
 
-// جلب تفاصيل الأدوية للطلبات لمعرفة عدد الأصناف وهل تحتوي أدوية مراقبة (Rx)
 $order_items_data = [];
 $items_query = "
     SELECT oi.OrderID, sm.IsControlled
@@ -58,7 +58,7 @@ while ($item = mysqli_fetch_assoc($items_result)) {
 }
 
 // ==========================================
-// 3. جلب قائمة الطلبات المعلقة للقائمة المنسدلة
+// 3. الطلبات المعلقة
 // ==========================================
 $pendingListQ = "SELECT o.OrderID, o.OrderDate, o.TotalAmount, u.Fname, u.Lname
                  FROM `Order` o
@@ -71,19 +71,20 @@ $pendingListQ = "SELECT o.OrderID, o.OrderDate, o.TotalAmount, u.Fname, u.Lname
 $pendingListResult = mysqli_query($conn, $pendingListQ);
 
 // ==========================================
-// 4. قوائم التنبيهات (نواقص + صلاحية)
+// 4. تنبيهات النواقص والصلاحية
 // ==========================================
-$lowStockListQ = "SELECT sm.Name, ps.Stock, ps.MinimumStock
+// 💡 أضفنا جلب StockID لتمريره في الرابط للتعديل الذكي
+$lowStockListQ = "SELECT ps.StockID, sm.Name, ps.Stock, ps.MinimumStock
                   FROM PharmacyStock ps
                   JOIN SystemMedicine sm ON ps.SystemMedID = sm.SystemMedID
                   WHERE ps.PharmacistID = $pharmacist_id AND ps.Stock <= ps.MinimumStock
                   ORDER BY ps.Stock ASC LIMIT 5";
 $lowStockListResult = mysqli_query($conn, $lowStockListQ);
 
-$expiringListQ = "SELECT sm.Name, ps.ExpiryDate, DATEDIFF(ps.ExpiryDate, CURDATE()) as DaysLeft
+$expiringListQ = "SELECT ps.StockID, sm.Name, ps.ExpiryDate, DATEDIFF(ps.ExpiryDate, CURDATE()) as DaysLeft
                   FROM PharmacyStock ps
                   JOIN SystemMedicine sm ON ps.SystemMedID = sm.SystemMedID
-                  WHERE ps.PharmacistID = $pharmacist_id AND ps.ExpiryDate <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+                  WHERE ps.PharmacistID = $pharmacist_id AND ps.ExpiryDate <= DATE_ADD(CURDATE(), INTERVAL ps.ExpiryAlertMonths MONTH)
                   ORDER BY ps.ExpiryDate ASC LIMIT 5";
 $expiringListResult = mysqli_query($conn, $expiringListQ);
 
@@ -91,54 +92,9 @@ include('../includes/header.php');
 include('../includes/sidebar.php');
 ?>
 
-<style>
-    /* إضافة ستايل زر التعديل המوحد هنا لتجنب تكراره */
-    .edit-button {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        background-color: transparent;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .edit-button:hover {
-        background-color: rgba(10, 122, 72, 0.1);
-    }
-
-    .dark .edit-button:hover {
-        background-color: rgba(74, 222, 128, 0.2);
-    }
-
-    .edit-button svg {
-        width: 16px;
-        height: 16px;
-    }
-
-    .edit-button path {
-        transition: stroke-dasharray 0.5s ease, stroke-dashoffset 0.5s ease;
-    }
-
-    .edit-button:hover .line {
-        stroke-dasharray: 20;
-        stroke-dashoffset: 0;
-    }
-
-    .edit-button .line {
-        stroke-dasharray: 20;
-        stroke-dashoffset: 20;
-    }
-</style>
-
 <main class="flex-1 p-8 bg-[#F2FBF5] dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300">
     <?php include('../includes/topbar.php'); ?>
 
-    <!-- ==========================================
-         رأس الصفحة
-    =========================================== -->
     <div class="mb-8 flex justify-between items-center">
         <div class="flex items-center gap-4">
             <div class="p-2.5">
@@ -153,12 +109,8 @@ include('../includes/sidebar.php');
         </div>
     </div>
 
-    <!-- ==========================================
-         1. شريط الإحصائيات
-    =========================================== -->
+    <!-- 1. شريط الإحصائيات -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-
-        <!-- كرت مبيعات اليوم -->
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-between transition-all hover:shadow-md border-b-4 border-b-transparent hover:border-b-[#0A7A48] dark:hover:border-b-[#0A7A48] hover:-translate-y-1">
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400 font-bold mb-2"><?php echo $lang['todays_sales']; ?></p>
@@ -167,7 +119,6 @@ include('../includes/sidebar.php');
             <i data-lucide="banknote" class="w-12 h-12 text-[#0A7A48] dark:text-[#4ADE80] drop-shadow-sm opacity-80"></i>
         </div>
 
-        <!-- كرت الطلبات قيد الانتظار -->
         <div class="relative">
             <button onclick="togglePendingOrders()" class="w-full bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-200 dark:border-slate-700 shadow-sm flex items-center justify-between transition-all hover:shadow-md border-b-4 border-b-transparent hover:border-b-amber-500 dark:hover:border-b-amber-500 hover:-translate-y-1 focus:outline-none text-right group">
                 <div class="flex flex-col items-start gap-2.5">
@@ -191,7 +142,7 @@ include('../includes/sidebar.php');
                 </div>
             </button>
 
-            <!-- القائمة المنسدلة للطلبات المعلقة -->
+            <!-- القائمة المنسدلة -->
             <div id="pendingOrdersList" class="absolute top-[calc(100%+0.5rem)] w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-3xl shadow-xl z-20 overflow-hidden origin-top scale-y-0 opacity-0 transition-all duration-300 pointer-events-none">
                 <div class="p-4 bg-amber-50/50 dark:bg-amber-900/10 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
                     <span class="text-sm font-black text-amber-600 dark:text-amber-400">تحتاج موافقتك!</span>
@@ -226,9 +177,7 @@ include('../includes/sidebar.php');
         </div>
     </div>
 
-    <!-- ==========================================
-         2. شاشة العمليات: جدول أحدث الطلبات (نسخة طبق الأصل من orders.php)
-    =========================================== -->
+    <!-- 2. جدول الطلبات -->
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col mb-8">
         <div class="p-6 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
             <div class="flex items-center gap-3">
@@ -245,10 +194,7 @@ include('../includes/sidebar.php');
                     <tr class="text-gray-600 dark:text-gray-400 text-sm <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                         <th class="p-5 font-bold whitespace-nowrap">رقم الطلب</th>
                         <th class="p-5 font-bold whitespace-nowrap">
-                            <div class="flex items-center gap-1.5">
-                                <i data-lucide="calendar" class="w-4 h-4 text-[#0A7A48]"></i>
-                                تاريخ الطلب
-                            </div>
+                            <div class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-[#0A7A48]"></i> تاريخ الطلب</div>
                         </th>
                         <th class="p-5 font-bold whitespace-nowrap">العميل / الاتصال</th>
                         <th class="p-5 font-bold min-w-[180px]">العنوان</th>
@@ -260,16 +206,12 @@ include('../includes/sidebar.php');
                 <tbody class="divide-y divide-gray-100 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                     <?php if (mysqli_num_rows($recentOrdersResult) > 0): ?>
                         <?php while ($order = mysqli_fetch_assoc($recentOrdersResult)):
-
-                            // حساب عدد الأصناف وهل يحتوي أدوية مراقبة
                             $current_items = $order_items_data[$order['OrderID']] ?? [];
                             $items_count = count($current_items);
                             $has_controlled = array_reduce($current_items, fn($carry, $item) => $carry || $item['IsControlled'] == 1, false);
 
-                            // توحيد الألوان والأيقونات تماماً مع orders.php
                             $statusColor = 'bg-transparent border border-gray-400 text-gray-400';
                             $statusIcon = 'circle';
-
                             if ($order['Status'] == 'Pending') {
                                 $statusColor = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800';
                                 $statusIcon = 'clock-3';
@@ -286,70 +228,35 @@ include('../includes/sidebar.php');
                         ?>
                             <tr class="hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 group">
                                 <td class="p-5 whitespace-nowrap">
-                                    <div class="font-black text-gray-800 dark:text-white flex items-center gap-1.5" dir="ltr">
-                                        <span class="text-[#0A7A48] dark:text-[#4ADE80] text-xs font-black">#</span>ORD-<?php echo $order['OrderID']; ?>
-                                    </div>
+                                    <div class="font-black text-gray-800 dark:text-white flex items-center gap-1.5" dir="ltr"><span class="text-[#0A7A48] dark:text-[#4ADE80] text-xs font-black">#</span>ORD-<?php echo $order['OrderID']; ?></div>
                                 </td>
-
                                 <td class="p-5 whitespace-nowrap">
-                                    <div class="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">
-                                        <i data-lucide="calendar" class="w-4 h-4 text-[#0A7A48] shrink-0"></i>
-                                        <span><?php echo date('d M Y', strtotime($order['OrderDate'])); ?></span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400">
-                                        <i data-lucide="clock" class="w-3.5 h-3.5 text-[#0A7A48]/60 shrink-0"></i>
-                                        <span dir="ltr"><?php echo date('h:i A', strtotime($order['OrderDate'])); ?></span>
-                                    </div>
+                                    <div class="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-200 mb-1"><span><?php echo date('d M Y', strtotime($order['OrderDate'])); ?></span></div>
+                                    <div class="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400"><span dir="ltr"><?php echo date('h:i A', strtotime($order['OrderDate'])); ?></span></div>
                                 </td>
-
                                 <td class="p-5 whitespace-nowrap">
-                                    <div class="flex items-center gap-3 mb-1.5">
-                                        <span class="font-bold text-gray-800 dark:text-white"><?php echo htmlspecialchars($order['Fname'] . ' ' . $order['Lname']); ?></span>
-                                    </div>
-                                    <div class="text-sm text-gray-600 dark:text-gray-300 font-medium flex items-center gap-2">
-                                        <i data-lucide="phone" class="w-4 h-4 text-[#0A7A48] shrink-0"></i>
-                                        <span dir="ltr"><?php echo htmlspecialchars($order['Phone'] ?? 'لا يوجد رقم'); ?></span>
-                                    </div>
+                                    <div class="flex items-center gap-3 mb-1.5"><span class="font-bold text-gray-800 dark:text-white"><?php echo htmlspecialchars($order['Fname'] . ' ' . $order['Lname']); ?></span></div>
+                                    <div class="text-sm text-gray-600 dark:text-gray-300 font-medium flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4 text-[#0A7A48] shrink-0"></i><span dir="ltr"><?php echo htmlspecialchars($order['Phone'] ?? 'لا يوجد رقم'); ?></span></div>
                                 </td>
-
                                 <td class="p-5">
-                                    <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                                        <i data-lucide="map-pin" class="w-4 h-4 text-[#0A7A48] shrink-0"></i>
-                                        <span class="leading-relaxed font-medium line-clamp-2"><?php echo htmlspecialchars($order['DeliveryAddress'] ?? 'الاستلام من الصيدلية'); ?></span>
-                                    </div>
+                                    <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 font-medium"><i data-lucide="map-pin" class="w-4 h-4 text-[#0A7A48] shrink-0"></i><span class="leading-relaxed font-medium line-clamp-2"><?php echo htmlspecialchars($order['DeliveryAddress'] ?? 'الاستلام من الصيدلية'); ?></span></div>
                                 </td>
-
                                 <td class="p-5 text-center whitespace-nowrap">
                                     <div class="flex flex-col items-center gap-1.5">
-                                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#0A7A48]/10 dark:bg-[#4ADE80]/10 text-[#0A7A48] dark:text-[#4ADE80] font-black text-[13px] shadow-sm border border-[#0A7A48]/15">
-                                            <?php echo $items_count; ?>
-                                        </span>
-                                        <?php if ($has_controlled): ?>
-                                            <span class="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 text-[9px] px-1.5 py-0.5 rounded-full font-black border border-amber-200 dark:border-amber-800 uppercase tracking-wide">Rx</span>
-                                        <?php endif; ?>
+                                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#0A7A48]/10 dark:bg-[#4ADE80]/10 text-[#0A7A48] dark:text-[#4ADE80] font-black text-[13px] shadow-sm border border-[#0A7A48]/15"><?php echo $items_count; ?></span>
+                                        <?php if ($has_controlled): ?><span class="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 text-[9px] px-1.5 py-0.5 rounded-full font-black border border-amber-200 dark:border-amber-800 uppercase tracking-wide">Rx</span><?php endif; ?>
                                     </div>
                                 </td>
-
                                 <td class="p-5 whitespace-nowrap text-center">
                                     <div class="font-black text-[#0A7A48] dark:text-[#4ADE80] text-[15px] mb-1.5" dir="ltr"><?php echo number_format($order['TotalAmount'], 2); ?> ₪</div>
-                                    <?php if ($order['PaymentMethod'] == 'COD'): ?>
-                                        <span class="inline-flex items-center gap-1 bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 text-[10px] px-2 py-0.5 rounded-full font-bold border border-gray-200 dark:border-slate-600">
-                                            <i data-lucide="banknote" class="w-3 h-3"></i> COD
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded-full font-bold border border-blue-100 dark:border-blue-800">
-                                            <i data-lucide="credit-card" class="w-3 h-3"></i> Card
-                                        </span>
-                                    <?php endif; ?>
+                                    <?php if ($order['PaymentMethod'] == 'COD'): ?><span class="inline-flex items-center gap-1 bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 text-[10px] px-2 py-0.5 rounded-full font-bold border border-gray-200 dark:border-slate-600">COD</span>
+                                    <?php else: ?><span class="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded-full font-bold border border-blue-100 dark:border-blue-800">Card</span><?php endif; ?>
                                 </td>
-
                                 <td class="p-5 text-center whitespace-nowrap">
                                     <span class="px-3.5 py-1.5 rounded-full text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow-sm <?php echo $statusColor; ?>">
                                         <i data-lucide="<?php echo $statusIcon; ?>" class="w-3.5 h-3.5"></i>
-                                        <?php
-                                        $statusLabels = ['Pending' => 'قيد الانتظار', 'Accepted' => 'جاري التجهيز', 'Delivered' => 'مكتمل', 'Rejected' => 'مرفوض'];
-                                        echo $statusLabels[$order['Status']] ?? $order['Status'];
-                                        ?>
+                                        <?php $statusLabels = ['Pending' => 'قيد الانتظار', 'Accepted' => 'جاري التجهيز', 'Delivered' => 'مكتمل', 'Rejected' => 'مرفوض'];
+                                        echo $statusLabels[$order['Status']] ?? $order['Status']; ?>
                                     </span>
                                 </td>
                             </tr>
@@ -357,16 +264,12 @@ include('../includes/sidebar.php');
                     <?php else: ?>
                         <tr>
                             <td colspan="7" class="p-16">
-                                <!-- Animated Empty State -->
                                 <div class="flex flex-col items-center justify-center text-center">
                                     <div class="relative w-24 h-24 mb-6">
                                         <div class="absolute inset-0 bg-[#0A7A48] rounded-full opacity-20 animate-ping"></div>
-                                        <div class="relative flex items-center justify-center w-full h-full bg-[#E6F7ED] dark:bg-[#044E29]/40 rounded-full shadow-inner border border-[#0A7A48]/10 dark:border-[#4ADE80]/10">
-                                            <i data-lucide="shopping-cart" class="w-10 h-10 text-[#0A7A48] dark:text-[#4ADE80]"></i>
-                                        </div>
+                                        <div class="relative flex items-center justify-center w-full h-full bg-[#E6F7ED] dark:bg-[#044E29]/40 rounded-full shadow-inner border border-[#0A7A48]/10 dark:border-[#4ADE80]/10"><i data-lucide="shopping-cart" class="w-10 h-10 text-[#0A7A48] dark:text-[#4ADE80]"></i></div>
                                     </div>
                                     <h3 class="text-lg font-black text-gray-800 dark:text-white mb-2">لا توجد طلبات حديثة</h3>
-                                    <p class="text-sm font-bold text-gray-500 dark:text-gray-400">ستظهر الطلبات الجديدة هنا فور وصولها.</p>
                                 </div>
                             </td>
                         </tr>
@@ -376,9 +279,7 @@ include('../includes/sidebar.php');
         </div>
     </div>
 
-    <!-- ==========================================
-         3. مركز التنبيهات: النواقص والصلاحية
-    =========================================== -->
+    <!-- 3. التنبيهات -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- نواقص المخزون -->
@@ -397,21 +298,14 @@ include('../includes/sidebar.php');
                         <?php while ($item = mysqli_fetch_assoc($lowStockListResult)): ?>
                             <li class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-slate-700/30 rounded-xl transition-colors group/item">
                                 <span class="font-bold text-sm text-gray-700 dark:text-gray-200"><?php echo htmlspecialchars($item['Name']); ?></span>
-
                                 <div class="flex items-center gap-3">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-bold text-gray-400">الكمية:</span>
                                         <span class="bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-lg text-xs font-black min-w-[30px] text-center shadow-sm" dir="ltr"><?php echo $item['Stock']; ?></span>
                                     </div>
-
-                                    <a href="medicines.php?search=<?php echo urlencode($item['Name']); ?>"
-                                        class="group w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:bg-[#0A7A48]/10 dark:hover:bg-[#4ADE80]/20 text-[#0A7A48] dark:text-[#4ADE80]"
-                                        title="تحديث الكمية">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                                            <path d="M12 20h9"></path>
-                                            <path class="transition-all duration-500 ease-in-out [stroke-dasharray:20] [stroke-dashoffset:20] group-hover:[stroke-dashoffset:0]" d="M12 20h9"></path>
-                                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                                        </svg>
+                                    <!-- 💡 رابط التوجيه لصفحة الأدوية مع فتح التعديل مباشرة -->
+                                    <a href="medicines.php?edit_id=<?php echo $item['StockID']; ?>" class="group w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:bg-[#0A7A48]/10 dark:hover:bg-[#4ADE80]/20 text-[#0A7A48] dark:text-[#4ADE80]" title="تحديث الكمية">
+                                        <i data-lucide="arrow-left" class="w-4 h-4 rtl:-scale-x-100"></i>
                                     </a>
                                 </div>
                             </li>
@@ -446,7 +340,6 @@ include('../includes/sidebar.php');
                     <ul class="divide-y divide-gray-50 dark:divide-slate-700/50">
                         <?php while ($exp = mysqli_fetch_assoc($expiringListResult)):
                             $daysLeft = (int)$exp['DaysLeft'];
-
                             if ($daysLeft < 0) {
                                 $badgeClass = "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 border-rose-200 dark:border-rose-800";
                                 $badgeText = "منتهي منذ " . abs($daysLeft) . " يوم";
@@ -460,21 +353,14 @@ include('../includes/sidebar.php');
                         ?>
                             <li class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-slate-700/30 rounded-xl transition-colors group/item">
                                 <span class="font-bold text-sm text-gray-700 dark:text-gray-200"><?php echo htmlspecialchars($exp['Name']); ?></span>
-
                                 <div class="flex items-center gap-3">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-bold text-gray-400" dir="ltr"><?php echo $exp['ExpiryDate']; ?></span>
                                         <span class="border <?php echo $badgeClass; ?> px-2 py-0.5 rounded-lg text-xs font-black min-w-[75px] text-center shadow-sm"><?php echo $badgeText; ?></span>
                                     </div>
-
-                                    <a href="medicines.php?search=<?php echo urlencode($exp['Name']); ?>"
-                                        class="group w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:bg-[#0A7A48]/10 dark:hover:bg-[#4ADE80]/20 text-[#0A7A48] dark:text-[#4ADE80]"
-                                        title="تحديث الصلاحية">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                                            <path d="M12 20h9"></path>
-                                            <path class="transition-all duration-500 ease-in-out [stroke-dasharray:20] [stroke-dashoffset:20] group-hover:[stroke-dashoffset:0]" d="M12 20h9"></path>
-                                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                                        </svg>
+                                    <!-- 💡 رابط التوجيه الذكي -->
+                                    <a href="medicines.php?edit_id=<?php echo $exp['StockID']; ?>" class="group w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:bg-[#0A7A48]/10 dark:hover:bg-[#4ADE80]/20 text-[#0A7A48] dark:text-[#4ADE80]" title="تحديث الصلاحية">
+                                        <i data-lucide="arrow-left" class="w-4 h-4 rtl:-scale-x-100"></i>
                                     </a>
                                 </div>
                             </li>
@@ -484,9 +370,7 @@ include('../includes/sidebar.php');
                     <div class="flex flex-col items-center justify-center p-12 text-center">
                         <div class="relative w-16 h-16 mb-4">
                             <div class="absolute inset-0 bg-[#0A7A48] rounded-full opacity-20 animate-ping"></div>
-                            <div class="relative flex items-center justify-center w-full h-full bg-[#E6F7ED] dark:bg-[#044E29]/40 rounded-full shadow-inner border border-[#0A7A48]/10 dark:border-[#4ADE80]/10">
-                                <i data-lucide="shield-check" class="w-8 h-8 text-[#0A7A48] dark:text-[#4ADE80]"></i>
-                            </div>
+                            <div class="relative flex items-center justify-center w-full h-full bg-[#E6F7ED] dark:bg-[#044E29]/40 rounded-full shadow-inner border border-[#0A7A48]/10 dark:border-[#4ADE80]/10"><i data-lucide="shield-check" class="w-8 h-8 text-[#0A7A48] dark:text-[#4ADE80]"></i></div>
                         </div>
                         <p class="font-bold text-sm text-gray-600 dark:text-gray-300">جميع الأدوية صالحة تماماً</p>
                     </div>

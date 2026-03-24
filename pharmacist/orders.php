@@ -27,7 +27,7 @@ if (isset($_GET['action']) && isset($_GET['order_id'])) {
     // التقاط سبب الرفض إن وُجد
     $reason = isset($_GET['reason']) ? mysqli_real_escape_string($conn, $_GET['reason']) : '';
 
-    $valid_actions =['Accepted', 'Rejected', 'Delivered'];
+    $valid_actions = ['Accepted', 'Rejected', 'Delivered'];
 
     if (in_array($action, $valid_actions)) {
 
@@ -77,7 +77,7 @@ $counts_sql = "SELECT o.Status, COUNT(DISTINCT o.OrderID) as count
                  GROUP BY o.Status";
 $counts_result = mysqli_query($conn, $counts_sql);
 
-$status_counts =['Pending' => 0, 'Accepted' => 0, 'Delivered' => 0, 'Rejected' => 0];
+$status_counts = ['Pending' => 0, 'Accepted' => 0, 'Delivered' => 0, 'Rejected' => 0];
 $total_all = 0;
 while ($row = mysqli_fetch_assoc($counts_result)) {
     $status_counts[$row['Status']] = $row['count'];
@@ -113,7 +113,7 @@ $orders_query = "
 $orders_result = mysqli_query($conn, $orders_query);
 
 // جلب تفاصيل الأدوية (Products inside the order)
-$order_items_data =[];
+$order_items_data = [];
 $items_query = "
     SELECT oi.OrderID, sm.Name, oi.Quantity, oi.SoldPrice, sm.IsControlled
     FROM OrderItems oi
@@ -127,7 +127,7 @@ while ($item = mysqli_fetch_assoc($items_result)) {
 }
 
 // تجميع الطلبات حسب المريض
-$grouped_orders =[];
+$grouped_orders = [];
 $has_orders = mysqli_num_rows($orders_result) > 0;
 if ($has_orders) {
     while ($order = mysqli_fetch_assoc($orders_result)) {
@@ -164,7 +164,7 @@ if ($has_orders) {
                 $statusIcon = 'x-circle';
             }
 
-            $current_items = $order_items_data[$order['OrderID']] ??[];
+            $current_items = $order_items_data[$order['OrderID']] ?? [];
             $has_controlled = array_reduce($current_items, fn($carry, $item) => $carry || $item['IsControlled'] == 1, false);
 
             // حساب الإجمالي المحسوب بناءً على الأصناف الحالية في الطلب (بعد أي تعديلات محتملة)
@@ -264,7 +264,7 @@ if ($has_orders) {
                     <span class="px-3.5 py-1.5 rounded-full text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow-sm <?php echo $statusColor; ?>">
                         <i data-lucide="<?php echo $statusIcon; ?>" class="w-3.5 h-3.5"></i>
                         <?php
-                        $statusLabels =[
+                        $statusLabels = [
                             'Pending'   => 'قيد الانتظار',
                             'Accepted'  => 'جاري التجهيز',
                             'Delivered' => 'مكتمل',
@@ -378,11 +378,25 @@ include('../includes/sidebar.php');
         color: #94a3b8;
     }
 
-    label[for="filter-All"]:hover { color: #0A7A48; }
-    label[for="filter-Pending"]:hover { color: #d97706; }
-    label[for="filter-Accepted"]:hover { color: #2563eb; }
-    label[for="filter-Delivered"]:hover { color: #059669; }
-    label[for="filter-Rejected"]:hover { color: #e11d48; }
+    label[for="filter-All"]:hover {
+        color: #0A7A48;
+    }
+
+    label[for="filter-Pending"]:hover {
+        color: #d97706;
+    }
+
+    label[for="filter-Accepted"]:hover {
+        color: #2563eb;
+    }
+
+    label[for="filter-Delivered"]:hover {
+        color: #059669;
+    }
+
+    label[for="filter-Rejected"]:hover {
+        color: #e11d48;
+    }
 
     .glass-radio-group input:checked+label {
         color: #ffffff !important;
@@ -424,35 +438,72 @@ include('../includes/sidebar.php');
         transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.4s ease, box-shadow 0.4s ease;
     }
 
-    #filter-All:checked~.glass-glider { transform: translateX(0%); background: #0A7A48; box-shadow: 0 4px 12px rgba(10, 122, 72, 0.35); }
-    #filter-Pending:checked~.glass-glider { transform: translateX(100%); background: #f59e0b; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35); }
-    #filter-Accepted:checked~.glass-glider { transform: translateX(200%); background: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35); }
-    #filter-Delivered:checked~.glass-glider { transform: translateX(300%); background: #10b981; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); }
-    #filter-Rejected:checked~.glass-glider { transform: translateX(400%); background: #f43f5e; box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35); }
+    #filter-All:checked~.glass-glider {
+        transform: translateX(0%);
+        background: #0A7A48;
+        box-shadow: 0 4px 12px rgba(10, 122, 72, 0.35);
+    }
 
-    html[dir="rtl"] #filter-Pending:checked~.glass-glider { transform: translateX(-100%); }
-    html[dir="rtl"] #filter-Accepted:checked~.glass-glider { transform: translateX(-200%); }
-    html[dir="rtl"] #filter-Delivered:checked~.glass-glider { transform: translateX(-300%); }
-    html[dir="rtl"] #filter-Rejected:checked~.glass-glider { transform: translateX(-400%); }
+    #filter-Pending:checked~.glass-glider {
+        transform: translateX(100%);
+        background: #f59e0b;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+    }
+
+    #filter-Accepted:checked~.glass-glider {
+        transform: translateX(200%);
+        background: #3b82f6;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+    }
+
+    #filter-Delivered:checked~.glass-glider {
+        transform: translateX(300%);
+        background: #10b981;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+
+    #filter-Rejected:checked~.glass-glider {
+        transform: translateX(400%);
+        background: #f43f5e;
+        box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35);
+    }
+
+    html[dir="rtl"] #filter-Pending:checked~.glass-glider {
+        transform: translateX(-100%);
+    }
+
+    html[dir="rtl"] #filter-Accepted:checked~.glass-glider {
+        transform: translateX(-200%);
+    }
+
+    html[dir="rtl"] #filter-Delivered:checked~.glass-glider {
+        transform: translateX(-300%);
+    }
+
+    html[dir="rtl"] #filter-Rejected:checked~.glass-glider {
+        transform: translateX(-400%);
+    }
 
     .modal-scroll::-webkit-scrollbar {
         width: 6px;
     }
+
     .modal-scroll::-webkit-scrollbar-thumb {
         background-color: rgba(10, 122, 72, 0.3);
         border-radius: 10px;
     }
+
     .dark .modal-scroll::-webkit-scrollbar-thumb {
         background-color: rgba(74, 222, 128, 0.3);
     }
 </style>
 
-<main class="flex-1 p-8 bg-[#F2FBF5] dark:bg-[#0B1120] h-full overflow-y-auto transition-colors duration-300 relative">
+<main class="flex-1 p-8 bg-[#F2FBF5] dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
     <?php include('../includes/topbar.php'); ?>
 
     <div class="mb-6 flex flex-col xl:flex-row justify-between items-center gap-6">
         <h1 class="text-3xl font-black text-gray-800 dark:text-white flex items-center gap-3 shrink-0 w-full xl:w-auto">
-            <i data-lucide="shopping-bag" class="text-[#0A7A48]"></i> <?php echo isset($lang['orders']) ? $lang['orders'] : 'الطلبات'; ?>
+            <i data-lucide="shopping-bag" class="text-[#0A7A48] dark:text-[#4ADE80] w-[42px] h-[30px]"></i> <?php echo isset($lang['orders']) ? $lang['orders'] : 'الطلبات'; ?>
         </h1>
 
         <div class="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto justify-end">
@@ -468,7 +519,7 @@ include('../includes/sidebar.php');
             <div class="w-full xl:w-auto overflow-x-auto custom-scrollbar pb-2 -mb-2">
                 <div class="glass-radio-group shrink-0 mx-auto md:mx-0 min-w-max">
                     <?php
-                    $tabs =[
+                    $tabs = [
                         'All'       => isset($lang['all_orders'])        ? $lang['all_orders']        : 'الكل',
                         'Pending'   => isset($lang['pending_orders'])    ? $lang['pending_orders']    : 'قيد الانتظار',
                         'Accepted'  => isset($lang['filter_processing']) ? $lang['filter_processing'] : 'جاري التجهيز',
@@ -549,7 +600,7 @@ include('../includes/sidebar.php');
 
             <!-- جسم المودال القابل للسكرول -->
             <div class="p-5 overflow-y-auto modal-scroll flex-1 space-y-5 relative">
-                
+
                 <!-- تنبيه سبب الرفض -->
                 <div id="rejectionAlert" class="hidden bg-rose-50 dark:bg-rose-900/20 border-l-4 border-rose-500 p-4 rounded-xl">
                     <div class="flex items-start gap-3">
@@ -598,7 +649,7 @@ include('../includes/sidebar.php');
                     <div id="rxHeader" class="w-full mb-3 flex items-center gap-3">
                         <!-- يُحقن بواسطة الجافاسكربت -->
                     </div>
-                    
+
                     <a id="prescriptionImgLink" href="#" target="_blank" class="block w-full max-w-[250px] relative group rounded-xl overflow-hidden border-4 border-white dark:border-slate-800 shadow-lg mb-4 bg-gray-200 dark:bg-slate-800 ring-2 ring-transparent group-hover:ring-amber-400 transition-all duration-300">
                         <img id="prescriptionImg" src="" onerror="this.src='https://placehold.co/400x600/e2e8f0/475569?text=صورة+غير+متوفرة';" alt="Prescription" class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-110 min-h-[150px]">
                         <div class="absolute inset-0 bg-amber-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -656,7 +707,9 @@ include('../includes/sidebar.php');
         }
 
         const newUrl = `?status=${status}&search=${encodeURIComponent(searchQuery)}`;
-        window.history.pushState({ path: newUrl }, '', newUrl);
+        window.history.pushState({
+            path: newUrl
+        }, '', newUrl);
 
         clearTimeout(timeoutId);
         timeoutId = setTimeout(async () => {
@@ -712,7 +765,7 @@ include('../includes/sidebar.php');
                 <circle cx="12" cy="10" r="3" fill="#0A7A48"></circle>
                </svg>`,
         iconSize: [32, 32],
-        iconAnchor:[16, 32],
+        iconAnchor: [16, 32],
     });
 
     function viewOrderDetails(jsonString) {
@@ -876,8 +929,12 @@ include('../includes/sidebar.php');
                 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' :
                 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
-            L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(deliveryMapInstance);
-            L.marker([order.lat, order.lng], { icon: customMapIcon }).addTo(deliveryMapInstance);
+            L.tileLayer(tileUrl, {
+                maxZoom: 19
+            }).addTo(deliveryMapInstance);
+            L.marker([order.lat, order.lng], {
+                icon: customMapIcon
+            }).addTo(deliveryMapInstance);
 
         } else {
             mapWrapper.classList.add('hidden');
