@@ -217,7 +217,8 @@ include('../includes/sidebar.php');
         transform: translateX(200%);
         background: #f59e0b;
         box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
-    }
+    } 
+    
 
     html[dir="rtl"] #filter-active:checked~.glass-glider { transform: translateX(-100%); }
     html[dir="rtl"] #filter-pending:checked~.glass-glider { transform: translateX(-200%); }

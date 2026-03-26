@@ -422,7 +422,6 @@ html[dir="rtl"] #filter-pending:checked ~ .glass-glider {
             }
         });
     }
-
     // تشغيل الدالة لأول مرة لرسم كل الصيدليات
     drawMarkers('all');
     lucide.createIcons();

@@ -120,7 +120,7 @@ include('../includes/header.php');
 include('../includes/sidebar.php');
 ?>
 
-<style>
+<style> 
     /* ستايل سلة المهملات المتحركة */
     .bin-button {
         display: flex;
