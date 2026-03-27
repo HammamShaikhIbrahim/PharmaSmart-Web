@@ -21,6 +21,8 @@ if ($current_lang == 'ar') {
 
     // تسجيل صيدلية جديدة | Register Page
     $lang['email_exists_error'] = "عذراً، هذا البريد الإلكتروني مسجل مسبقاً!";
+    $lang['license_exists_error'] = "عذراً، رقم الترخيص هذا مسجل مسبقاً لصيدلية أخرى!";
+    $lang['db_error'] = "حدث خطأ في قاعدة البيانات:";
     $lang['location_error'] = "يرجى تحديد موقع الصيدلية بدقة على الخريطة.";
     $lang['registration_success'] = "تم إرسال طلب انضمامك بنجاح! يرجى انتظار تفعيل حسابك من الإدارة.";
     $lang['registration_error'] = "حدث خطأ أثناء التسجيل. الرجاء المحاولة مرة أخرى.";
@@ -28,6 +30,12 @@ if ($current_lang == 'ar') {
     $lang['register_title'] = "تسجيل صيدلية جديدة - PharmaSmart";
     $lang['register_title_short'] = "تسجيل صيدلية جديدة";
     $lang['register_subtitle'] = "قم بملء بياناتك بدقة ليتم مراجعتها من قبل الإدارة";
+    
+    // خطوات التسجيل | Registration Steps
+    $lang['personal_info_step'] = "بيانات شخصية";
+    $lang['pharmacy_info_step'] = "بيانات الصيدلية";
+    $lang['geographic_location_step'] = "الموقع الجغرافي";
+
     $lang['personal_info'] = "البيانات الشخصية";
     $lang['first_name'] = "الاسم الأول";
     $lang['last_name'] = "اسم العائلة";
@@ -47,10 +55,12 @@ if ($current_lang == 'ar') {
     $lang['login_link'] = "العودة لتسجيل الدخول";
     $lang['success'] = "اكتمل الطلب!";
     $lang['error'] = "خطأ";
+    $lang['warning_title'] = "تنبيه!";
 
     // أخطاء تسجيل الدخول | Login Errors
     $lang['err_patient'] = "عذراً، نظام الويب مخصص للصيادلة والإدارة فقط. يرجى استخدام تطبيق الموبايل.";
     $lang['err_pending'] = "حسابك معلق حالياً، يرجى انتظار موافقة الإدارة.";
+    $lang['err_incomplete_account'] = "حساب غير مكتمل، يرجى التواصل مع الإدارة.";
     $lang['err_pass'] = "كلمة المرور غير صحيحة.";
     $lang['err_email'] = "البريد الإلكتروني غير مسجل.";
     $lang['err_title'] = "خطأ في تسجيل الدخول";
@@ -252,7 +262,6 @@ if ($current_lang == 'ar') {
     $lang['delivered_btn'] = "تم التوصيل";
     $lang['no_orders'] = "لا توجد طلبات";
     $lang['no_orders_desc'] = "لا يوجد طلبات مطابقة للبحث أو الفلتر";
-    $lang['try_changing_search'] = "حاول تغيير كلمة البحث أو اختيار فلتر آخر.";
 
     // نافذة تفاصيل الطلب | Order Details Modal
     $lang['order_details'] = "تفاصيل الطلب";
@@ -327,6 +336,8 @@ if ($current_lang == 'ar') {
 
     // تسجيل صيدلية جديدة | Register Page
     $lang['email_exists_error'] = "Sorry, this email is already registered!";
+    $lang['license_exists_error'] = "Sorry, this license number is already registered to another pharmacy!";
+    $lang['db_error'] = "Database error occurred:";
     $lang['location_error'] = "Please select the pharmacy location accurately on the map.";
     $lang['registration_success'] = "Your join request has been submitted successfully! Please wait for admin approval.";
     $lang['registration_error'] = "An error occurred during registration. Please try again.";
@@ -334,6 +345,12 @@ if ($current_lang == 'ar') {
     $lang['register_title'] = "New Pharmacy Registration - PharmaSmart";
     $lang['register_title_short'] = "New Pharmacy Registration";
     $lang['register_subtitle'] = "Please fill in your details accurately for review by the administration.";
+    
+    // خطوات التسجيل | Registration Steps
+    $lang['personal_info_step'] = "Personal Info";
+    $lang['pharmacy_info_step'] = "Pharmacy Info";
+    $lang['geographic_location_step'] = "Geographic Location";
+
     $lang['personal_info'] = "Personal Information";
     $lang['first_name'] = "First Name";
     $lang['last_name'] = "Last Name";
@@ -353,10 +370,12 @@ if ($current_lang == 'ar') {
     $lang['login_link'] = "Return to Login";
     $lang['success'] = "Request completed!";
     $lang['error'] = "Error";
+    $lang['warning_title'] = "Warning!";
 
     // أخطاء تسجيل الدخول | Login Errors
     $lang['err_patient'] = "Sorry, Web system is for Pharmacists & Admin only. Please use the mobile app.";
     $lang['err_pending'] = "Your account is pending, please wait for admin approval.";
+    $lang['err_incomplete_account'] = "Incomplete account, please contact administration.";
     $lang['err_pass'] = "Incorrect password.";
     $lang['err_email'] = "Email not registered.";
     $lang['err_title'] = "Login Error";

@@ -85,7 +85,7 @@ if ($role_id == 1) {
             <!-- 🚀 الكتالوج الموحد للأدوية (قريباً) -->
             <a href="#" onclick="event.preventDefault(); showComingSoon('admin_catalog');" class="<?php echo $link_classes; ?> justify-between opacity-80 hover:opacity-100 border border-transparent hover:border-amber-500/30">
                 <div class="flex items-center gap-3">
-                    <i data-lucide="database" class="flex-shrink-0 text-amber-400"></i>
+                    <i class="fa-solid fa-pills flex-shrink-0 text-amber-400"></i>
                     <span><?php echo $lang['system_medicines']; ?></span>
                 </div>
                 <span class="bg-amber-500/20 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 flex-shrink-0 uppercase tracking-widest">
@@ -131,7 +131,7 @@ if ($role_id == 1) {
                     <?php echo $lang['coming_soon_badge']; ?>
                 </span>
             </a>
-            
+
             <!-- 🚀 التقارير الشاملة للصيدلية (قريباً) -->
             <a href="#" onclick="event.preventDefault(); showComingSoon('pharmacist_reports');" class="<?php echo $link_classes; ?> justify-between opacity-80 hover:opacity-100 border border-transparent hover:border-amber-500/30">
                 <div class="flex items-center gap-3">
@@ -142,7 +142,7 @@ if ($role_id == 1) {
                     <?php echo $lang['coming_soon_badge']; ?>
                 </span>
             </a>
-            
+
             <!-- 🚀  المبيعات-->
             <a href="#" onclick="event.preventDefault(); showComingSoon('sales');" class="<?php echo $link_classes; ?> justify-between opacity-80 hover:opacity-100 border border-transparent hover:border-amber-500/30">
                 <div class="flex items-center gap-3">
@@ -153,7 +153,7 @@ if ($role_id == 1) {
                     <?php echo $lang['coming_soon_badge']; ?>
                 </span>
             </a>
-            
+
             <!-- 🚀 الموردين -->
             <a href="#" onclick="event.preventDefault(); showComingSoon('suppliers');" class="<?php echo $link_classes; ?> justify-between opacity-80 hover:opacity-100 border border-transparent hover:border-amber-500/30">
                 <div class="flex items-center gap-3">
@@ -187,21 +187,21 @@ if ($role_id == 1) {
         const btnColor = isPharmacist ? '#0A7A48' : '#048AC1';
         let bodyText = '';
 
-        // تحديد الرسالة بناءً على الزر المضغوط باستخدام متغيرات اللغة
+        // تم تغيير علامات التنصيص إلى (`) Backticks لحل مشكلة توقف الكود
         if (feature === 'admin_catalog') {
-            bodyText = "<?php echo $lang['msg_admin_catalog']; ?>";
+            bodyText = `<?php echo addslashes($lang['msg_admin_catalog']); ?>`;
         } else if (feature === 'admin_reports') {
-            bodyText = "<?php echo $lang['msg_admin_reports']; ?>";
+            bodyText = `<?php echo addslashes($lang['msg_admin_reports']); ?>`;
         } else if (feature === 'chat') {
-            bodyText = "<?php echo $lang['msg_chat']; ?>";
+            bodyText = `<?php echo addslashes($lang['msg_chat']); ?>`;
         } else if (feature === 'pharmacist_reports') {
-            bodyText = "<?php echo $lang['msg_pharmacist_reports']; ?>";
+            bodyText = `<?php echo addslashes($lang['msg_pharmacist_reports']); ?>`;
         } else if (feature === 'sales') {
-            bodyText = "<?php echo $lang['msg_sales']; ?>";
+            bodyText = `<?php echo addslashes($lang['msg_sales']); ?>`;
         } else if (feature === 'suppliers') {
-            bodyText = "<?php echo $lang['msg_suppliers']; ?>";
+            bodyText = `<?php echo addslashes($lang['msg_suppliers']); ?>`;
         } else {
-            bodyText = "<?php echo $lang['msg_feature_default']; ?>";
+            bodyText = `<?php echo addslashes($lang['msg_feature_default']); ?>`;
         }
 
         if (typeof Swal !== 'undefined') {

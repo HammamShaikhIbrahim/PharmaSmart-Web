@@ -136,6 +136,7 @@
 
 </head>
 
+
 <body class="bg-gray-50 text-gray-800 dark:bg-slate-900 dark:text-gray-200">
 
     <!-- الحاوية الأساسية تملأ الشاشة تماماً -->

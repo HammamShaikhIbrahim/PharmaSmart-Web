@@ -47,7 +47,7 @@ if ($role_id == 2) {
 
         if (!empty($pharma_data['Logo']) && $pharma_data['Logo'] != 'default.png') {
 
-            $avatar_url = "../uploads/" . $pharma_data['Logo'];
+            $avatar_url = "../uploads/logos/" . $pharma_data['Logo'];
         } else {
 
             // لو مش رافع لوجو، نعمله لوجو بالحروف الأولى من اسم الصيدلية بلون أخضر
