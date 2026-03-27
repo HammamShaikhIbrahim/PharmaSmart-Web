@@ -175,11 +175,12 @@ if ($has_orders) {
             // في حال لم يتبق شيء في الطلب (حذفت كل الأدوية)، يكون المجموع 0، وإلا الإجمالي المحسوب
             $final_total = (count($current_items) > 0) ? $calculated_total : 0;
 
-            $order_json = htmlspecialchars(json_encode([
+            // تم تعديل هذا الجزء للتعامل مع الفواصل والنصوص بشكل آمن
+            $order_data = [
                 'id' => $order['OrderID'],
                 'date' => date('d M Y, h:i A', strtotime($order['OrderDate'])),
                 'status' => $order['Status'],
-                'total' => $final_total, // إرسال الإجمالي المصحح بدلاً من الإجمالي القديم
+                'total' => $final_total, 
                 'patient' => $order['Fname'] . ' ' . $order['Lname'],
                 'phone' => $order['Phone'],
                 'address' => $order['DeliveryAddress'],
@@ -190,15 +191,18 @@ if ($has_orders) {
                 'items' => $current_items,
                 'prescription' => $order['PrescriptionImage'],
                 'has_controlled' => $has_controlled
-            ]));
+            ];
+            // استخدام ENT_QUOTES ضروري جداً لتجنب تكسر الـ JS
+            $order_json = htmlspecialchars(json_encode($order_data), ENT_QUOTES, 'UTF-8');
 
             $row_classes = $is_main_row
-                ? "hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 group cursor-pointer border-b border-transparent hover:border-gray-100 dark:hover:border-slate-700"
+                ? "hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 group cursor-pointer border-transparent hover:border-gray-100 dark:hover:border-slate-700"
                 : "sub-row-{$group_id} hidden bg-gray-50/50 dark:bg-slate-800/40 hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 cursor-pointer transition-all border-b border-transparent";
 
             $sub_indicator = !$is_main_row ? '<i data-lucide="corner-down-left" class="w-4 h-4 text-gray-500 inline-block mr-1 ml-1"></i>' : '';
 ?>
-            <tr class="<?php echo $row_classes; ?>" onclick="viewOrderDetails('<?php echo $order_json; ?>')">
+            <!-- تم تعديل استدعاء viewOrderDetails ليستخدم this وتخزين البيانات في data-order -->
+            <tr class="<?php echo $row_classes; ?>" data-order="<?php echo $order_json; ?>" onclick="viewOrderDetails(this)">
                 <td class="p-5 whitespace-nowrap text-right">
                     <div class="font-black text-gray-800 dark:text-white flex items-center justify-end gap-1.5 w-full" dir="ltr">
                         <?php if (!$is_main_row) echo $sub_indicator; ?>
@@ -223,14 +227,14 @@ if ($has_orders) {
                     </div>
                     <div class="text-sm text-gray-600 dark:text-gray-300 font-medium flex items-center gap-2">
                         <i data-lucide="phone" class="w-4 h-4 text-[#0A7A48] shrink-0"></i>
-                        <span dir="ltr"><?php echo htmlspecialchars($order['Phone'] ?? $lang['no_phone']); ?></span>
+                        <span dir="ltr"><?php echo htmlspecialchars($order['Phone'] ?? ($lang['no_phone'] ?? '')); ?></span>
                     </div>
                 </td>
 
                 <td class="p-5">
                     <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
                         <i data-lucide="map-pin" class="w-4 h-4 text-[#0A7A48] shrink-0"></i>
-                        <span class="leading-relaxed font-medium line-clamp-2"><?php echo htmlspecialchars($order['DeliveryAddress'] ?? $lang['pickup_pharmacy']); ?></span>
+                        <span class="leading-relaxed font-medium line-clamp-2"><?php echo htmlspecialchars($order['DeliveryAddress'] ?? ($lang['pickup_pharmacy'] ?? '')); ?></span>
                     </div>
                 </td>
 
@@ -263,10 +267,10 @@ if ($has_orders) {
                         <i data-lucide="<?php echo $statusIcon; ?>" class="w-3.5 h-3.5"></i>
                         <?php
                         $statusLabels =[
-                            'Pending'   => $lang['status_pending'],
-                            'Accepted'  => $lang['status_processing'],
-                            'Delivered' => $lang['status_delivered'],
-                            'Rejected'  => $lang['status_rejected'],
+                            'Pending'   => $lang['status_pending'] ?? 'Pending',
+                            'Accepted'  => $lang['status_processing'] ?? 'Accepted',
+                            'Delivered' => $lang['status_delivered'] ?? 'Delivered',
+                            'Rejected'  => $lang['status_rejected'] ?? 'Rejected',
                         ];
                         echo $statusLabels[$order['Status']] ?? $order['Status'];
                         ?>
@@ -281,7 +285,8 @@ if ($has_orders) {
                                 <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-300 toggle-icon"></i>
                             </button>
                         <?php else: ?>
-                            <button class="p-2 bg-[#0A7A48]/8 dark:bg-[#334155] rounded-lg text-[#0A7A48] dark:text-[#4ADE80] hover:bg-[#0A7A48] hover:text-white dark:hover:bg-[#0A7A48] dark:hover:text-white transition-colors shadow-sm border border-[#0A7A48]/20 dark:border-[#4ADE80]/10" onclick="event.stopPropagation(); viewOrderDetails('<?php echo $order_json; ?>')">
+                            <!-- تم التعديل هنا ليعمل الزر بأمان -->
+                            <button class="p-2 bg-[#0A7A48]/8 dark:bg-[#334155] rounded-lg text-[#0A7A48] dark:text-[#4ADE80] hover:bg-[#0A7A48] hover:text-white dark:hover:bg-[#0A7A48] dark:hover:text-white transition-colors shadow-sm border border-[#0A7A48]/20 dark:border-[#4ADE80]/10" onclick="event.stopPropagation(); viewOrderDetails(this.closest('tr'))">
                                 <i data-lucide="eye" class="w-4 h-4"></i>
                             </button>
                         <?php endif; ?>
@@ -303,7 +308,7 @@ if ($has_orders) {
                     </div>
                 </div>
                 <h3 class="text-lg font-black text-gray-800 dark:text-white mb-2"><?php echo isset($lang['no_orders_desc']) ? $lang['no_orders_desc'] : 'لا يوجد طلبات مطابقة للبحث أو الفلتر'; ?></h3>
-                <p class="text-sm font-bold text-gray-500 dark:text-gray-400"><?php echo $lang['try_changing_search']; ?></p>
+                <p class="text-sm font-bold text-gray-500 dark:text-gray-400"><?php echo $lang['try_changing_search'] ?? ''; ?></p>
             </div>
         </td>
     </tr>
@@ -313,6 +318,9 @@ $rows_html = ob_get_clean();
 
 // AJAX Response
 if (isset($_GET['ajax'])) {
+    // هذا السطر مهم جداً لحل مشكلة الفلتر: ينظف أي أخطاء أو مسافات طُبعت مسبقاً قبل إرسال الجافاسكربت
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    
     header('Content-Type: application/json');
     echo json_encode([
         'html' => $rows_html,
@@ -479,7 +487,7 @@ include('../includes/sidebar.php');
                     <input type="text" id="searchInput" placeholder="<?php echo isset($lang['search_order_patient']) ? $lang['search_order_patient'] : 'ابحث برقم الطلب أو المريض...'; ?>" value="<?php echo htmlspecialchars($search_query); ?>"
                         oninput="fetchData(document.querySelector('input[name=\'order-filter\']:checked').value, this.value)"
                         class="w-full p-3 rounded-2xl border border-gray-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-sm focus:ring-2 focus:ring-[#0A7A48] outline-none transition-all text-sm">
-                    <i data-lucide="search" class="top-3.5 text-gray-400 group-focus-within:text-[#0A7A48] transition-colors <?php echo ($dir == 'rtl') ? 'absolute left-4' : 'absolute right-4'; ?> w-5 h-5"></i>
+                    <i data-lucide="search" class="top-3.5 text-gray-400 group-focus-within:text-[#0A7A48] transition-colors <?php echo (isset($dir) && $dir == 'rtl') ? 'absolute left-4' : 'absolute right-4'; ?> w-5 h-5"></i>
                 </div>
             </div>
 
@@ -513,7 +521,7 @@ include('../includes/sidebar.php');
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 overflow-hidden mb-6">
         <div class="overflow-x-auto" id="ordersTableContainer" style="transition: opacity 0.3s ease;">
             <table class="w-full border-collapse min-w-[1050px]">
-                <thead id="tableHeader" class="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 text-sm <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>" <?php if (!$has_orders) echo 'style="display:none;"'; ?>>
+                <thead id="tableHeader" class="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 text-sm <?php echo (isset($dir) && $dir == 'rtl') ? 'text-right' : 'text-left'; ?>" <?php if (!$has_orders) echo 'style="display:none;"'; ?>>
                     <tr>
                         <th class="p-5 font-bold whitespace-nowrap text-right"><?php echo isset($lang['order_number']) ? $lang['order_number'] : 'رقم الطلب'; ?></th>
                         <th class="p-5 font-bold whitespace-nowrap">
@@ -530,7 +538,7 @@ include('../includes/sidebar.php');
                         <th class="p-5 font-bold text-center"><?php echo isset($lang['actions']) ? $lang['actions'] : 'الإجراءات'; ?></th>
                     </tr>
                 </thead>
-                <tbody id="ordersTableBody" class="divide-y divide-gray-100 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
+                <tbody id="ordersTableBody" class="divide-y divide-gray-200 dark:divide-slate-700/50 <?php echo (isset($dir) && $dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                     <?php echo $rows_html; ?>
                 </tbody>
             </table>
@@ -573,7 +581,7 @@ include('../includes/sidebar.php');
                     <div class="flex items-start gap-3">
                         <i data-lucide="info" class="w-5 h-5 text-rose-500 shrink-0 mt-0.5"></i>
                         <div>
-                            <h4 class="text-sm font-black text-rose-800 dark:text-rose-400 mb-1"><?php echo $lang['rejection_reason_title']; ?></h4>
+                            <h4 class="text-sm font-black text-rose-800 dark:text-rose-400 mb-1"><?php echo $lang['rejection_reason_title'] ?? 'سبب الرفض'; ?></h4>
                             <p id="rejectionReasonText" class="text-xs font-bold text-rose-600 dark:text-rose-300"></p>
                         </div>
                     </div>
@@ -601,7 +609,7 @@ include('../includes/sidebar.php');
                         <div id="deliveryMap" class="absolute inset-0"></div>
                     </div>
                     <p id="noLocationMsg" class="hidden mt-2 text-xs text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
-                        <i data-lucide="info" class="w-3 h-3"></i> <?php echo $lang['no_location_provided']; ?>
+                        <i data-lucide="info" class="w-3 h-3"></i> <?php echo $lang['no_location_provided'] ?? 'لا يوجد موقع'; ?>
                     </p>
                 </div>
 
@@ -628,7 +636,7 @@ include('../includes/sidebar.php');
                         <div class="flex items-start gap-2">
                             <input type="checkbox" id="verifyPrescriptionCheck" class="w-4 h-4 text-amber-500 rounded border-gray-300 focus:ring-amber-500 accent-amber-500 mt-0.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                             <label for="verifyPrescriptionCheck" class="text-xs font-bold text-gray-800 dark:text-gray-200 cursor-pointer select-none leading-tight">
-                                <?php echo $lang['rx_verify_check']; ?>
+                                <?php echo $lang['rx_verify_check'] ?? 'تأكيد صحة الوصفة'; ?>
                             </label>
                         </div>
                     </div>
@@ -654,33 +662,33 @@ include('../includes/sidebar.php');
         lucide.createIcons();
     });
 
-    const txtNoPhone = "<?php echo isset($lang['no_phone']) ? $lang['no_phone'] : 'لا يوجد رقم'; ?>";
-    const txtPickup = "<?php echo isset($lang['pickup_pharmacy']) ? $lang['pickup_pharmacy'] : 'استلام من الصيدلية'; ?>";
-    const txtQty = "<?php echo isset($lang['quantity']) ? $lang['quantity'] : 'الكمية:'; ?>";
-    const txtReject = "<?php echo isset($lang['reject']) ? $lang['reject'] : 'رفض'; ?>";
-    const txtAccept = "<?php echo isset($lang['accept_prepare']) ? $lang['accept_prepare'] : 'قبول وتجهيز'; ?>";
-    const txtDelivered = "<?php echo isset($lang['delivered_successfully']) ? $lang['delivered_successfully'] : 'تم تسليم الطلب بنجاح'; ?>";
-    const txtActionTaken = "<?php echo isset($lang['action_taken']) ? $lang['action_taken'] : 'تم اتخاذ إجراء مسبقاً'; ?>";
+    // تم استخدام json_encode هنا لتجنب أي أخطاء في الـ JS إذا احتوت الترجمة على علامات اقتباس
+    const txtNoPhone = <?php echo json_encode($lang['no_phone'] ?? 'لا يوجد رقم', JSON_UNESCAPED_UNICODE); ?>;
+    const txtPickup = <?php echo json_encode($lang['pickup_pharmacy'] ?? 'استلام من الصيدلية', JSON_UNESCAPED_UNICODE); ?>;
+    const txtQty = <?php echo json_encode($lang['quantity'] ?? 'الكمية:', JSON_UNESCAPED_UNICODE); ?>;
+    const txtReject = <?php echo json_encode($lang['reject'] ?? 'رفض', JSON_UNESCAPED_UNICODE); ?>;
+    const txtAccept = <?php echo json_encode($lang['accept_prepare'] ?? 'قبول وتجهيز', JSON_UNESCAPED_UNICODE); ?>;
+    const txtDelivered = <?php echo json_encode($lang['delivered_successfully'] ?? 'تم تسليم الطلب بنجاح', JSON_UNESCAPED_UNICODE); ?>;
+    const txtActionTaken = <?php echo json_encode($lang['action_taken'] ?? 'تم اتخاذ إجراء مسبقاً', JSON_UNESCAPED_UNICODE); ?>;
     
-    // متغيرات جديدة خاصة بالـ JavaScript لدعم اللغة
-    const txtSecurityAlert = "<?php echo $lang['security_alert']; ?>";
-    const txtRxReviewReq = "<?php echo $lang['rx_review_required_alert']; ?>";
-    const txtRejectOrderTitle = "<?php echo $lang['reject_order_title']; ?>";
-    const txtRejectOrderText = "<?php echo $lang['reject_order_text']; ?>";
-    const txtRejectOrderPlaceholder = "<?php echo $lang['reject_order_placeholder']; ?>";
-    const txtConfirmReject = "<?php echo $lang['confirm_reject']; ?>";
-    const txtCancel = "<?php echo $lang['cancel']; ?>";
-    const txtRejectReasonReq = "<?php echo $lang['reject_reason_required']; ?>";
-    const txtCanceledNoReason = "<?php echo $lang['canceled_without_reason']; ?>";
-    const txtAcceptOrderTitle = "<?php echo $lang['accept_order_title']; ?>";
-    const txtAcceptOrderText = "<?php echo $lang['accept_order_text']; ?>";
-    const txtYesAccept = "<?php echo $lang['yes_accept']; ?>";
-    const txtConfirmDeliveryTitle = "<?php echo $lang['confirm_delivery_title']; ?>";
-    const txtConfirmDeliveryText = "<?php echo $lang['confirm_delivery_text']; ?>";
-    const txtYesDelivered = "<?php echo $lang['yes_delivered']; ?>";
-    const txtControlledMedsRx = "<?php echo $lang['controlled_meds_rx']; ?>";
-    const txtRxVerificationReq = "<?php echo $lang['rx_verification_required']; ?>";
-    const txtExtraAttachmentRx = "<?php echo $lang['extra_attachment_rx']; ?>";
+    const txtSecurityAlert = <?php echo json_encode($lang['security_alert'] ?? 'تنبيه أمني', JSON_UNESCAPED_UNICODE); ?>;
+    const txtRxReviewReq = <?php echo json_encode($lang['rx_review_required_alert'] ?? 'يجب التحقق من الوصفة', JSON_UNESCAPED_UNICODE); ?>;
+    const txtRejectOrderTitle = <?php echo json_encode($lang['reject_order_title'] ?? 'رفض الطلب', JSON_UNESCAPED_UNICODE); ?>;
+    const txtRejectOrderText = <?php echo json_encode($lang['reject_order_text'] ?? 'سبب الرفض:', JSON_UNESCAPED_UNICODE); ?>;
+    const txtRejectOrderPlaceholder = <?php echo json_encode($lang['reject_order_placeholder'] ?? 'اكتب السبب هنا', JSON_UNESCAPED_UNICODE); ?>;
+    const txtConfirmReject = <?php echo json_encode($lang['confirm_reject'] ?? 'تأكيد الرفض', JSON_UNESCAPED_UNICODE); ?>;
+    const txtCancel = <?php echo json_encode($lang['cancel'] ?? 'إلغاء', JSON_UNESCAPED_UNICODE); ?>;
+    const txtRejectReasonReq = <?php echo json_encode($lang['reject_reason_required'] ?? 'سبب الرفض مطلوب', JSON_UNESCAPED_UNICODE); ?>;
+    const txtCanceledNoReason = <?php echo json_encode($lang['canceled_without_reason'] ?? 'تم الإلغاء بدون سبب', JSON_UNESCAPED_UNICODE); ?>;
+    const txtAcceptOrderTitle = <?php echo json_encode($lang['accept_order_title'] ?? 'قبول الطلب', JSON_UNESCAPED_UNICODE); ?>;
+    const txtAcceptOrderText = <?php echo json_encode($lang['accept_order_text'] ?? 'هل أنت متأكد من قبول الطلب؟', JSON_UNESCAPED_UNICODE); ?>;
+    const txtYesAccept = <?php echo json_encode($lang['yes_accept'] ?? 'نعم، أوافق', JSON_UNESCAPED_UNICODE); ?>;
+    const txtConfirmDeliveryTitle = <?php echo json_encode($lang['confirm_delivery_title'] ?? 'تأكيد التسليم', JSON_UNESCAPED_UNICODE); ?>;
+    const txtConfirmDeliveryText = <?php echo json_encode($lang['confirm_delivery_text'] ?? 'هل تم تسليم الطلب للعميل؟', JSON_UNESCAPED_UNICODE); ?>;
+    const txtYesDelivered = <?php echo json_encode($lang['yes_delivered'] ?? 'نعم، تم التسليم', JSON_UNESCAPED_UNICODE); ?>;
+    const txtControlledMedsRx = <?php echo json_encode($lang['controlled_meds_rx'] ?? 'أدوية مراقبة', JSON_UNESCAPED_UNICODE); ?>;
+    const txtRxVerificationReq = <?php echo json_encode($lang['rx_verification_required'] ?? 'تتطلب تحقق من الوصفة', JSON_UNESCAPED_UNICODE); ?>;
+    const txtExtraAttachmentRx = <?php echo json_encode($lang['extra_attachment_rx'] ?? 'مرفقات إضافية', JSON_UNESCAPED_UNICODE); ?>;
 
     let timeoutId;
     async function fetchData(status, searchQuery) {
@@ -710,7 +718,7 @@ include('../includes/sidebar.php');
                     tableHeader.style.display = data.has_orders ? '' : 'none';
                 }
 
-                for (const [key, value] of Object.entries(data.counts)) {
+                for (const[key, value] of Object.entries(data.counts)) {
                     const badge = document.getElementById(`count-${key}`);
                     if (badge) badge.innerText = value;
                 }
@@ -751,15 +759,18 @@ include('../includes/sidebar.php');
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#fff"></path>
                 <circle cx="12" cy="10" r="3" fill="#0A7A48"></circle>
                </svg>`,
-        iconSize: [32, 32],
+        iconSize:[32, 32],
         iconAnchor: [16, 32],
     });
 
-    function viewOrderDetails(jsonString) {
+    // تم تعديل الدالة لتستقبل الـ element مباشرة وقراءة الـ data-order لحل مشكلة توقف العين عن العمل
+    function viewOrderDetails(element) {
+        const jsonString = element.getAttribute('data-order');
+        if (!jsonString) return;
+        
         const order = JSON.parse(jsonString);
         currentOrderData = order;
 
-        
         document.getElementById('modalOrderId').innerText = `#${order.id}`;
         document.getElementById('modalOrderDate').innerText = order.date;
         document.getElementById('modalPatientName').innerText = order.patient;

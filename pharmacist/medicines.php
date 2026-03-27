@@ -173,7 +173,7 @@ if (isset($_GET['ajax_table'])) {
                 'ExpiryAlertMonths' => $med['ExpiryAlertMonths'] ?? 1
             ]), ENT_QUOTES, 'UTF-8');
 ?>
-            <tr class="hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 border-b border-transparent hover:border-gray-100 dark:hover:border-slate-700">
+            <tr class="hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 border-transparent hover:border-gray-100 dark:hover:border-slate-700">
                 <td class="p-4 items-center gap-3">
                     <div class="flex items-center gap-3 mb-1.5">
                         <span class="font-black text-gray-800 dark:text-white"><?php echo htmlspecialchars($med['Name']); ?></span>
@@ -398,7 +398,7 @@ include('../includes/sidebar.php');
                         <th class="p-4 font-bold text-center"><?php echo $lang['actions']; ?></th>
                     </tr>
                 </thead>
-                <tbody id="medicinesBody" class="divide-y divide-gray-50 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
+                <tbody id="medicinesBody" class="divide-y divide-gray-200 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                     <!-- يُعبأ بـ AJAX -->
                 </tbody>
             </table>

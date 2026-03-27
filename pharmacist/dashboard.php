@@ -53,7 +53,7 @@ $recentOrdersQ = "
 ";
 $recentOrdersResult = mysqli_query($conn, $recentOrdersQ);
 
-$order_items_data =[];
+$order_items_data = [];
 $items_query = "
     SELECT oi.OrderID, sm.IsControlled
     FROM OrderItems oi
@@ -145,8 +145,8 @@ include('../includes/sidebar.php');
 
                 <div class="flex items-center gap-4">
                     <i data-lucide="clock" class="w-12 h-12 text-amber-500 drop-shadow-sm opacity-80"></i>
-                    <div class="p-2 bg-gray-50 dark:bg-slate-700 rounded-xl transition-colors group-hover:bg-gray-100 dark:group-hover:bg-slate-600 hidden md:block">
-                        <i data-lucide="chevron-down" id="pendingChevron" class="w-5 h-5 text-gray-500 transition-transform duration-300"></i>
+                    <div class="p-2  rounded-xl transition-colors group-hover:bg-amber-600 dark:group-hover:bg-amber-600 hidden md:block">
+                        <i data-lucide="chevron-down" id="pendingChevron" class="w-5 h-5 text-gray-500 transition-transform duration-300 group-hover:text-white dark:group-hover:text-white"></i>
                     </div>
                 </div>
             </button>
@@ -215,7 +215,7 @@ include('../includes/sidebar.php');
                 <tbody class="divide-y divide-gray-100 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                     <?php if (mysqli_num_rows($recentOrdersResult) > 0): ?>
                         <?php while ($order = mysqli_fetch_assoc($recentOrdersResult)):
-                            $current_items = $order_items_data[$order['OrderID']] ??[];
+                            $current_items = $order_items_data[$order['OrderID']] ?? [];
                             $items_count = count($current_items);
                             $has_controlled = array_reduce($current_items, fn($carry, $item) => $carry || $item['IsControlled'] == 1, false);
 
@@ -293,7 +293,7 @@ include('../includes/sidebar.php');
 
         <!-- نواقص المخزون -->
         <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-rose-100 dark:border-rose-900/20 flex flex-col overflow-hidden relative">
-            <div class="absolute top-0 right-0 w-2 h-full bg-rose-500"></div>
+            <div class="absolute <?php echo ($dir == 'rtl') ? 'top-0 right-0' : 'top-0 left-0'; ?> w-2 h-full bg-rose-500"></div>
             <div class="p-5 border-b border-gray-50 dark:border-slate-700/50 flex justify-between items-center">
                 <div class="flex items-center gap-3">
                     <i data-lucide="package-minus" class="w-6 h-6 text-rose-500 opacity-80"></i>
@@ -335,7 +335,7 @@ include('../includes/sidebar.php');
 
         <!-- تواريخ الصلاحية -->
         <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-orange-100 dark:border-orange-900/20 flex flex-col overflow-hidden relative">
-            <div class="absolute top-0 right-0 w-2 h-full bg-orange-400"></div>
+            <div class="absolute <?php echo ($dir == 'rtl') ? 'top-0 right-0' : 'top-0 left-0'; ?> w-2 h-full bg-orange-400"></div>
             <div class="p-5 border-b border-gray-50 dark:border-slate-700/50 flex justify-between items-center">
                 <div class="flex items-center gap-3">
                     <i data-lucide="calendar-off" class="w-6 h-6 text-orange-500 opacity-80"></i>
