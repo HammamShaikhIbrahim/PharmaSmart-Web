@@ -81,14 +81,14 @@ if ($current_lang == 'ar') {
     $lang['switch_lang_code'] = "en";
 
     // القائمة الجانبية (روابط إضافية) | Sidebar Links
-    $lang['system_medicines'] = "الكتالوج الموحد";
+    $lang['system_medicines'] = "الأدوية";
     $lang['reports'] = "التقارير";
     $lang['sales'] = "المبيعات";
     $lang['suppliers'] = "الموردين";
     $lang['coming_soon_badge'] = "قريباً";
 
     // رسائل الميزات القادمة (Sidebar JS) | Coming Soon Messages
-    $lang['msg_admin_catalog'] = 'جاري العمل على واجهة إدارة "الكتالوج الموحد" والتي ستمكنك من إضافة وتعديل الأدوية والتصنيفات المركزية للمنصة.';
+    $lang['msg_admin_catalog'] = 'جاري العمل على واجهة إدارة "الأدوية الموحدة" والتي ستمكنك من إضافة وتعديل الأدوية والتصنيفات المركزية للمنصة.';
     $lang['msg_admin_reports'] = 'نعمل على تصميم لوحة "التقارير الشاملة" لتعرض لك إحصائيات المبيعات، نمو المنصة، والمنتجات الأكثر طلباً.';
     $lang['msg_chat'] = 'ميزة المحادثات المباشرة قيد التطوير وسيتم إتاحتها قريباً لتسهيل تواصلك المباشر والآمن مع المرضى.';
     $lang['msg_pharmacist_reports'] = 'نعمل على تصميم لوحة "التقارير الشاملة" لتعرض لك إحصائيات المبيعات ونمو الصيدلية في رسوم بيانية تفاعلية.';
@@ -216,7 +216,7 @@ if ($current_lang == 'ar') {
 
     // نافذة إضافة وتعديل الدواء | Modal Add/Edit Stock
     $lang['med_exists_error'] = "هذا الدواء موجود مسبقاً في مخزونك! يمكنك تعديل كميته بدلاً من إضافته مرة أخرى.";
-    $lang['search_in_catalog'] = "1. ابحث عن الدواء في الكتالوج الموحد:";
+    $lang['search_in_catalog'] = "1. ابحث عن الدواء في الكتالوج:";
     $lang['scan_barcode_manual'] = "مسح باركود / إضافة يدوية";
     $lang['all_categories'] = "جميع التصنيفات";
     $lang['search_med_name_scientific'] = "اكتب اسم الدواء التجاري أو العلمي...";
@@ -396,7 +396,7 @@ if ($current_lang == 'ar') {
     $lang['switch_lang_code'] = "ar";
 
     // القائمة الجانبية (روابط إضافية) | Sidebar Links
-    $lang['system_medicines'] = "Unified Catalog";
+    $lang['system_medicines'] = "Medicines";
     $lang['reports'] = "Reports";
     $lang['sales'] = "Sales";
     $lang['suppliers'] = "Suppliers";
@@ -531,7 +531,7 @@ if ($current_lang == 'ar') {
 
     // نافذة إضافة وتعديل الدواء | Modal Add/Edit Stock
     $lang['med_exists_error'] = "This medicine already exists in your inventory! You can edit its quantity instead of adding it again.";
-    $lang['search_in_catalog'] = "1. Search for medicine in the unified catalog:";
+    $lang['search_in_catalog'] = "1. Search for medicine in the catalog:";
     $lang['scan_barcode_manual'] = "Scan Barcode / Add Manually";
     $lang['all_categories'] = "All Categories";
     $lang['search_med_name_scientific'] = "Type brand or scientific name...";
