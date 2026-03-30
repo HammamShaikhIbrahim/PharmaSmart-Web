@@ -1,51 +1,64 @@
 <?php
+// ==========================================
+// ملف API لعرض تفاصيل الدواء والصيدليات المتوفر فيها
+// يُوضع في: PharmaSmart_Web/api/medicine_details.php
+// ==========================================
+// 💡 تم تحديثه ليُرجع StockID و PharmacistID اللذان تحتاجهما السلة
+
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET");
 
 include_once '../config/database.php';
 
-$med_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-if ($med_id <= 0) {
-    echo json_encode(["status" => "error", "message" => "ID دواء غير صحيح"]);
+if ($id <= 0) {
+    echo json_encode(["status" => "error", "message" => "معرّف الدواء غير صالح"]);
     exit();
 }
 
-$response = [
-    "status" => "success",
-    "details" => null,
-    "pharmacies" => []
-];
+// 1. جلب تفاصيل الدواء من الكتالوج الموحد
+$medQuery = "SELECT sm.*, c.NameAR AS CategoryName 
+             FROM SystemMedicine sm 
+             LEFT JOIN Category c ON sm.CategoryID = c.CategoryID 
+             WHERE sm.SystemMedID = $id";
 
-// 1. جلب بيانات الدواء الأساسية
-$medSql = "SELECT sm.*, c.NameAR as CategoryName 
-           FROM SystemMedicine sm 
-           LEFT JOIN Category c ON sm.CategoryID = c.CategoryID 
-           WHERE sm.SystemMedID = $med_id";
-$medRes = mysqli_query($conn, $medSql);
+$medResult = mysqli_query($conn, $medQuery);
 
-if ($medRes && mysqli_num_rows($medRes) > 0) {
-    $response['details'] = mysqli_fetch_assoc($medRes);
-} else {
+if (mysqli_num_rows($medResult) == 0) {
     echo json_encode(["status" => "error", "message" => "الدواء غير موجود"]);
     exit();
 }
 
-// 2. جلب جميع الصيدليات التي تملك هذا الدواء في مخزونها
-$stockSql = "SELECT ps.Price, ps.Stock, ph.PharmacyName, ph.Location, ph.Latitude, ph.Longitude, ph.PharmacistID 
-             FROM PharmacyStock ps
-             JOIN Pharmacist ph ON ps.PharmacistID = ph.PharmacistID
-             WHERE ps.SystemMedID = $med_id AND ps.Stock > 0 AND ps.ExpiryDate >= CURDATE()
-             ORDER BY ps.Price ASC";
-$stockRes = mysqli_query($conn, $stockSql);
+$details = mysqli_fetch_assoc($medResult);
 
-if ($stockRes) {
-    while ($row = mysqli_fetch_assoc($stockRes)) {
-        $row['Price'] = number_format((float)$row['Price'], 2, '.', '');
-        $response['pharmacies'][] = $row;
-    }
+// 2. جلب الصيدليات التي يتوفر فيها هذا الدواء (مع StockID و PharmacistID)
+$phQuery = "SELECT 
+                ps.StockID,
+                ps.PharmacistID,
+                ps.Price,
+                ps.Stock,
+                ph.PharmacyName,
+                ph.Location,
+                ph.Latitude,
+                ph.Longitude,
+                ph.Logo
+            FROM PharmacyStock ps
+            JOIN Pharmacist ph ON ps.PharmacistID = ph.PharmacistID
+            WHERE ps.SystemMedID = $id 
+              AND ps.Stock > 0
+            ORDER BY ps.Price ASC";
+
+$phResult = mysqli_query($conn, $phQuery);
+
+$pharmacies = [];
+while ($row = mysqli_fetch_assoc($phResult)) {
+    $pharmacies[] = $row;
 }
 
-echo json_encode($response);
+echo json_encode([
+    "status" => "success",
+    "details" => $details,
+    "pharmacies" => $pharmacies
+]);
 ?>
