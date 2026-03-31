@@ -34,7 +34,7 @@ if (
     $lname = mysqli_real_escape_string($conn, $data->lname);
     $email = mysqli_real_escape_string($conn, $data->email);
     $phone = isset($data->phone) ? mysqli_real_escape_string($conn, $data->phone) : '';
-    
+
     // تشفير كلمة المرور (أمان عالي)
     $password = password_hash($data->password, PASSWORD_DEFAULT);
 
@@ -42,7 +42,7 @@ if (
     $address = isset($data->address) ? mysqli_real_escape_string($conn, $data->address) : '';
     $medicalHistory = isset($data->medicalHistory) ? mysqli_real_escape_string($conn, $data->medicalHistory) : '';
     $dob = isset($data->dob) && !empty($data->dob) ? "'" . mysqli_real_escape_string($conn, $data->dob) . "'" : "NULL";
-    
+
     // خطوط الطول والعرض للخريطة (إذا لم تتوفر نضعها NULL)
     $lat = isset($data->lat) && !empty($data->lat) ? (float)$data->lat : "NULL";
     $lng = isset($data->lng) && !empty($data->lng) ? (float)$data->lng : "NULL";
@@ -51,7 +51,7 @@ if (
     // 5. التأكد من أن الإيميل غير مسجل مسبقاً
     // ==========================================
     $check_email = mysqli_query($conn, "SELECT UserID FROM User WHERE Email = '$email'");
-    if(mysqli_num_rows($check_email) > 0){
+    if (mysqli_num_rows($check_email) > 0) {
         // إذا كان الإيميل موجود، نرد على الموبايل برسالة خطأ
         echo json_encode(["status" => "error", "message" => "عذراً، هذا البريد الإلكتروني مسجل مسبقاً!"]);
         exit();
@@ -69,7 +69,7 @@ if (
         $queryUser = "INSERT INTO User (Fname, Lname, Email, Password, Phone, RoleID) 
                       VALUES ('$fname', '$lname', '$email', '$password', '$phone', 3)";
         mysqli_query($conn, $queryUser);
-        
+
         // الحصول على الـ ID الخاص بالمستخدم الذي تم إنشاؤه للتو
         $userId = mysqli_insert_id($conn);
 
@@ -80,14 +80,13 @@ if (
 
         // ج) تأكيد الحفظ
         mysqli_commit($conn);
-        
+
         // الرد على الموبايل برسالة نجاح
         echo json_encode(["status" => "success", "message" => "تم إنشاء حسابك بنجاح!"]);
-
-    } catch(Exception $e) {
+    } catch (Exception $e) {
         // في حال حدوث أي خطأ، نتراجع عن كل الإدخالات السابقة
         mysqli_rollback($conn);
-        
+
         // الرد على الموبايل برسالة خطأ
         echo json_encode(["status" => "error", "message" => "حدث خطأ في السيرفر أثناء التسجيل: " . $e->getMessage()]);
     }
@@ -95,4 +94,3 @@ if (
     // إذا أرسل الموبايل بيانات ناقصة
     echo json_encode(["status" => "error", "message" => "الرجاء تعبئة جميع الحقول الأساسية!"]);
 }
-?>

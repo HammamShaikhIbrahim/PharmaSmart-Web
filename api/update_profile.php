@@ -23,8 +23,6 @@ if (!empty($data->user_id) && !empty($data->fname) && !empty($data->lname)) {
     } else {
         echo json_encode(["status" => "error", "message" => "فشل التحديث: " . mysqli_error($conn)]);
     }
-
 } else {
     echo json_encode(["status" => "error", "message" => "بيانات ناقصة"]);
 }
-?>

@@ -27,7 +27,7 @@ if (isset($_GET['action']) && isset($_GET['order_id'])) {
     // التقاط سبب الرفض إن وُجد
     $reason = isset($_GET['reason']) ? mysqli_real_escape_string($conn, $_GET['reason']) : '';
 
-    $valid_actions =['Accepted', 'Rejected', 'Delivered'];
+    $valid_actions = ['Accepted', 'Rejected', 'Delivered'];
 
     if (in_array($action, $valid_actions)) {
 
@@ -77,7 +77,7 @@ $counts_sql = "SELECT o.Status, COUNT(DISTINCT o.OrderID) as count
                  GROUP BY o.Status";
 $counts_result = mysqli_query($conn, $counts_sql);
 
-$status_counts =['Pending' => 0, 'Accepted' => 0, 'Delivered' => 0, 'Rejected' => 0];
+$status_counts = ['Pending' => 0, 'Accepted' => 0, 'Delivered' => 0, 'Rejected' => 0];
 $total_all = 0;
 while ($row = mysqli_fetch_assoc($counts_result)) {
     $status_counts[$row['Status']] = $row['count'];
@@ -113,7 +113,7 @@ $orders_query = "
 $orders_result = mysqli_query($conn, $orders_query);
 
 // جلب تفاصيل الأدوية (Products inside the order)
-$order_items_data =[];
+$order_items_data = [];
 $items_query = "
     SELECT oi.OrderID, sm.Name, oi.Quantity, oi.SoldPrice, sm.IsControlled
     FROM OrderItems oi
@@ -127,16 +127,15 @@ while ($item = mysqli_fetch_assoc($items_result)) {
 }
 
 // تجميع الطلبات حسب المريض
-$grouped_orders =[];
+$grouped_orders = [];
 $has_orders = mysqli_num_rows($orders_result) > 0;
 if ($has_orders) {
     while ($order = mysqli_fetch_assoc($orders_result)) {
         $grouped_orders[$order['UserID']][] = $order;
     }
 }
-
 // ==========================================
-// 4. هندسة الـ AJAX (رسم الجدول برمجياً)
+// 4. هندسة الـ AJAX (رسم الجدول برمجياً) - تصميم الشجرة (Tree View)
 // ==========================================
 ob_start();
 if ($has_orders) {
@@ -164,23 +163,20 @@ if ($has_orders) {
                 $statusIcon = 'x-circle';
             }
 
-            $current_items = $order_items_data[$order['OrderID']] ??[];
+            $current_items = $order_items_data[$order['OrderID']] ?? [];
             $has_controlled = array_reduce($current_items, fn($carry, $item) => $carry || $item['IsControlled'] == 1, false);
 
-            // حساب الإجمالي المحسوب بناءً على الأصناف الحالية في الطلب (بعد أي تعديلات محتملة)
             $calculated_total = 0;
             foreach ($current_items as $c_item) {
                 $calculated_total += ($c_item['Quantity'] * $c_item['SoldPrice']);
             }
-            // في حال لم يتبق شيء في الطلب (حذفت كل الأدوية)، يكون المجموع 0، وإلا الإجمالي المحسوب
             $final_total = (count($current_items) > 0) ? $calculated_total : 0;
 
-            // تم تعديل هذا الجزء للتعامل مع الفواصل والنصوص بشكل آمن
             $order_data = [
                 'id' => $order['OrderID'],
                 'date' => date('d M Y, h:i A', strtotime($order['OrderDate'])),
                 'status' => $order['Status'],
-                'total' => $final_total, 
+                'total' => $final_total,
                 'patient' => $order['Fname'] . ' ' . $order['Lname'],
                 'phone' => $order['Phone'],
                 'address' => $order['DeliveryAddress'],
@@ -192,20 +188,40 @@ if ($has_orders) {
                 'prescription' => $order['PrescriptionImage'],
                 'has_controlled' => $has_controlled
             ];
-            // استخدام ENT_QUOTES ضروري جداً لتجنب تكسر الـ JS
             $order_json = htmlspecialchars(json_encode($order_data), ENT_QUOTES, 'UTF-8');
 
-            $row_classes = $is_main_row
-                ? "hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 group cursor-pointer border-transparent hover:border-gray-100 dark:hover:border-slate-700"
-                : "sub-row-{$group_id} hidden bg-gray-50/50 dark:bg-slate-800/40 hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 cursor-pointer transition-all border-b border-transparent";
+            // 💡 التصميم السحري الجديد لفصل الأب عن الأبناء
+            if ($is_main_row) {
+                // صف أساسي (الأب)
+                $row_classes = "hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 group cursor-pointer border-b border-gray-100 dark:border-slate-700";
+                // إذا كان له أبناء نضع زر التوسيع، وإلا زر العين فقط
+                $action_button = $has_multiple
+                    ? '<button class="px-3 py-1.5 bg-[#0A7A48]/10 dark:bg-[#4ADE80]/10 rounded-lg text-[#0A7A48] dark:text-[#4ADE80] hover:bg-[#0A7A48]/20 transition-colors flex items-center justify-center gap-1 mx-auto shadow-sm" onclick="event.stopPropagation(); toggleSubOrders(\'' . $group_id . '\', this)">
+                        <span class="text-[12px] font-black">' . (count($user_orders) - 1) . '+</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-300 toggle-icon"></i>
+                       </button>'
+                    : '<button class="p-2 bg-[#0A7A48]/10 dark:bg-[#334155] rounded-lg text-[#0A7A48] dark:text-[#4ADE80] hover:bg-[#0A7A48] hover:text-white transition-colors shadow-sm" onclick="event.stopPropagation(); viewOrderDetails(this.closest(\'tr\'))">
+                        <i data-lucide="eye" class="w-4 h-4"></i>
+                       </button>';
+            } else {
+                // صف فرعي (الأبناء) - لون أغمق قليلاً وتصميم متداخل
+                $row_classes = "sub-row-{$group_id} hidden bg-gray-50/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all border-b border-gray-100/50 dark:border-slate-700/50 relative";
+                $action_button = '<button class="p-2 bg-gray-200 dark:bg-slate-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-[#0A7A48] hover:text-white transition-colors shadow-sm" onclick="event.stopPropagation(); viewOrderDetails(this.closest(\'tr\'))">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                  </button>';
+            }
 
-            $sub_indicator = !$is_main_row ? '<i data-lucide="corner-down-left" class="w-4 h-4 text-gray-500 inline-block mr-1 ml-1"></i>' : '';
+            // أيقونة التفرع (L-shape) للطلبات الفرعية
+            $sub_indicator = !$is_main_row
+                ? '<div class="absolute right-0 top-0 bottom-0 w-2 bg-[#0A7A48]/20 dark:bg-[#4ADE80]/20"></div><i data-lucide="corner-down-left" class="w-5 h-5 text-gray-400 inline-block ml-3 opacity-60"></i>'
+                : '';
 ?>
-            <!-- تم تعديل استدعاء viewOrderDetails ليستخدم this وتخزين البيانات في data-order -->
-            <tr class="<?php echo $row_classes; ?>" data-order="<?php echo $order_json; ?>" onclick="viewOrderDetails(this)">
-                <td class="p-5 whitespace-nowrap text-right">
-                    <div class="font-black text-gray-800 dark:text-white flex items-center justify-end gap-1.5 w-full" dir="ltr">
-                        <?php if (!$is_main_row) echo $sub_indicator; ?>
+            <tr class="<?php echo $row_classes; ?>" data-order="<?php echo $order_json; ?>" <?php if ($is_main_row) echo 'onclick="viewOrderDetails(this)"'; ?>>
+
+                <!-- رقم الطلب مع مؤشر التفرع -->
+                <td class="p-5 whitespace-nowrap text-right relative">
+                    <div class="font-black text-gray-800 dark:text-white flex items-center justify-start gap-1.5 w-full" dir="ltr">
+                        <?php echo $sub_indicator; ?>
                         <span class="text-[#0A7A48] dark:text-[#4ADE80] text-xs font-black">#</span>ORD-<?php echo $order['OrderID']; ?>
                     </div>
                 </td>
@@ -223,17 +239,18 @@ if ($has_orders) {
 
                 <td class="p-5 whitespace-nowrap">
                     <div class="flex items-center gap-3 mb-1.5">
-                        <span class="font-bold text-gray-800 dark:text-white"><?php echo htmlspecialchars($order['Fname'] . ' ' . $order['Lname']); ?></span>
+                        <!-- تمييز الأبناء بتصغير الاسم قليلاً وجعله رمادي -->
+                        <span class="font-bold <?php echo $is_main_row ? 'text-gray-800 dark:text-white' : 'text-gray-600 dark:text-gray-300'; ?>"><?php echo htmlspecialchars($order['Fname'] . ' ' . $order['Lname']); ?></span>
                     </div>
-                    <div class="text-sm text-gray-600 dark:text-gray-300 font-medium flex items-center gap-2">
-                        <i data-lucide="phone" class="w-4 h-4 text-[#0A7A48] shrink-0"></i>
+                    <div class="text-sm text-gray-500 dark:text-gray-400 font-medium flex items-center gap-2">
+                        <i data-lucide="phone" class="w-4 h-4 text-[#0A7A48]/70 shrink-0"></i>
                         <span dir="ltr"><?php echo htmlspecialchars($order['Phone'] ?? ($lang['no_phone'] ?? '')); ?></span>
                     </div>
                 </td>
 
                 <td class="p-5">
                     <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                        <i data-lucide="map-pin" class="w-4 h-4 text-[#0A7A48] shrink-0"></i>
+                        <i data-lucide="map-pin" class="w-4 h-4 text-[#0A7A48]/70 shrink-0"></i>
                         <span class="leading-relaxed font-medium line-clamp-2"><?php echo htmlspecialchars($order['DeliveryAddress'] ?? ($lang['pickup_pharmacy'] ?? '')); ?></span>
                     </div>
                 </td>
@@ -250,7 +267,7 @@ if ($has_orders) {
                 </td>
 
                 <td class="p-5 whitespace-nowrap text-center">
-                    <div class="font-black text-[#0A7A48] dark:text-[#4ADE80] text-[15px] mb-1.5" dir="ltr"><?php echo number_format($final_total, 2); ?> ₪</div>
+                    <div class="font-black <?php echo $is_main_row ? 'text-[#0A7A48] dark:text-[#4ADE80]' : 'text-gray-700 dark:text-gray-300'; ?> text-[15px] mb-1.5" dir="ltr"><?php echo number_format($final_total, 2); ?> ₪</div>
                     <?php if ($order['PaymentMethod'] == 'COD'): ?>
                         <span class="inline-flex items-center gap-1 bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 text-[10px] px-2 py-0.5 rounded-full font-bold border border-gray-200 dark:border-slate-600">
                             <i data-lucide="banknote" class="w-3 h-3"></i> COD
@@ -266,7 +283,7 @@ if ($has_orders) {
                     <span class="px-3.5 py-1.5 rounded-full text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow-sm <?php echo $statusColor; ?>">
                         <i data-lucide="<?php echo $statusIcon; ?>" class="w-3.5 h-3.5"></i>
                         <?php
-                        $statusLabels =[
+                        $statusLabels = [
                             'Pending'   => $lang['status_pending'] ?? 'Pending',
                             'Accepted'  => $lang['status_processing'] ?? 'Accepted',
                             'Delivered' => $lang['status_delivered'] ?? 'Delivered',
@@ -279,17 +296,7 @@ if ($has_orders) {
 
                 <td class="p-5 text-center">
                     <div class="flex justify-center items-center gap-1">
-                        <?php if ($is_main_row && $has_multiple): ?>
-                            <button class="px-3 py-1.5 bg-[#0A7A48]/10 dark:bg-[#4ADE80]/10 rounded-lg text-[#0A7A48] dark:text-[#4ADE80] hover:bg-[#0A7A48]/20 dark:hover:bg-[#4ADE80]/20 transition-colors flex items-center justify-center gap-1 mx-auto shadow-sm" onclick="event.stopPropagation(); toggleSubOrders('<?php echo $group_id; ?>', this)">
-                                <span class="text-[12px] font-black"><?php echo count($user_orders) - 1; ?>+</span>
-                                <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-300 toggle-icon"></i>
-                            </button>
-                        <?php else: ?>
-                            <!-- تم التعديل هنا ليعمل الزر بأمان -->
-                            <button class="p-2 bg-[#0A7A48]/8 dark:bg-[#334155] rounded-lg text-[#0A7A48] dark:text-[#4ADE80] hover:bg-[#0A7A48] hover:text-white dark:hover:bg-[#0A7A48] dark:hover:text-white transition-colors shadow-sm border border-[#0A7A48]/20 dark:border-[#4ADE80]/10" onclick="event.stopPropagation(); viewOrderDetails(this.closest('tr'))">
-                                <i data-lucide="eye" class="w-4 h-4"></i>
-                            </button>
-                        <?php endif; ?>
+                        <?php echo $action_button; ?>
                     </div>
                 </td>
             </tr>
@@ -318,9 +325,9 @@ $rows_html = ob_get_clean();
 
 // AJAX Response
 if (isset($_GET['ajax'])) {
-    // هذا السطر مهم جداً لحل مشكلة الفلتر: ينظف أي أخطاء أو مسافات طُبعت مسبقاً قبل إرسال الجافاسكربت
-    while (ob_get_level() > 0) { ob_end_clean(); }
-    
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
     header('Content-Type: application/json');
     echo json_encode([
         'html' => $rows_html,
@@ -384,11 +391,25 @@ include('../includes/sidebar.php');
         color: #94a3b8;
     }
 
-    label[for="filter-All"]:hover { color: #0A7A48; }
-    label[for="filter-Pending"]:hover { color: #d97706; }
-    label[for="filter-Accepted"]:hover { color: #2563eb; }
-    label[for="filter-Delivered"]:hover { color: #059669; }
-    label[for="filter-Rejected"]:hover { color: #e11d48; }
+    label[for="filter-All"]:hover {
+        color: #0A7A48;
+    }
+
+    label[for="filter-Pending"]:hover {
+        color: #d97706;
+    }
+
+    label[for="filter-Accepted"]:hover {
+        color: #2563eb;
+    }
+
+    label[for="filter-Delivered"]:hover {
+        color: #059669;
+    }
+
+    label[for="filter-Rejected"]:hover {
+        color: #e11d48;
+    }
 
     .glass-radio-group input:checked+label {
         color: #ffffff !important;
@@ -460,17 +481,34 @@ include('../includes/sidebar.php');
         box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35);
     }
 
-    html[dir="rtl"] #filter-Pending:checked~.glass-glider { transform: translateX(-100%); }
-    html[dir="rtl"] #filter-Accepted:checked~.glass-glider { transform: translateX(-200%); }
-    html[dir="rtl"] #filter-Delivered:checked~.glass-glider { transform: translateX(-300%); }
-    html[dir="rtl"] #filter-Rejected:checked~.glass-glider { transform: translateX(-400%); }
+    html[dir="rtl"] #filter-Pending:checked~.glass-glider {
+        transform: translateX(-100%);
+    }
 
-    .modal-scroll::-webkit-scrollbar { width: 6px; }
+    html[dir="rtl"] #filter-Accepted:checked~.glass-glider {
+        transform: translateX(-200%);
+    }
+
+    html[dir="rtl"] #filter-Delivered:checked~.glass-glider {
+        transform: translateX(-300%);
+    }
+
+    html[dir="rtl"] #filter-Rejected:checked~.glass-glider {
+        transform: translateX(-400%);
+    }
+
+    .modal-scroll::-webkit-scrollbar {
+        width: 6px;
+    }
+
     .modal-scroll::-webkit-scrollbar-thumb {
         background-color: rgba(10, 122, 72, 0.3);
         border-radius: 10px;
     }
-    .dark .modal-scroll::-webkit-scrollbar-thumb { background-color: rgba(74, 222, 128, 0.3); }
+
+    .dark .modal-scroll::-webkit-scrollbar-thumb {
+        background-color: rgba(74, 222, 128, 0.3);
+    }
 </style>
 
 <main class="flex-1 p-8 bg-[#F2FBF5] dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
@@ -494,7 +532,7 @@ include('../includes/sidebar.php');
             <div class="w-full xl:w-auto overflow-x-auto custom-scrollbar pb-2 -mb-2">
                 <div class="glass-radio-group shrink-0 mx-auto md:mx-0 min-w-max">
                     <?php
-                    $tabs =[
+                    $tabs = [
                         'All'       => isset($lang['all_orders'])        ? $lang['all_orders']        : 'الكل',
                         'Pending'   => isset($lang['pending_orders'])    ? $lang['pending_orders']    : 'قيد الانتظار',
                         'Accepted'  => isset($lang['filter_processing']) ? $lang['filter_processing'] : 'جاري التجهيز',
@@ -670,7 +708,7 @@ include('../includes/sidebar.php');
     const txtAccept = <?php echo json_encode($lang['accept_prepare'] ?? 'قبول وتجهيز', JSON_UNESCAPED_UNICODE); ?>;
     const txtDelivered = <?php echo json_encode($lang['delivered_successfully'] ?? 'تم تسليم الطلب بنجاح', JSON_UNESCAPED_UNICODE); ?>;
     const txtActionTaken = <?php echo json_encode($lang['action_taken'] ?? 'تم اتخاذ إجراء مسبقاً', JSON_UNESCAPED_UNICODE); ?>;
-    
+
     const txtSecurityAlert = <?php echo json_encode($lang['security_alert'] ?? 'تنبيه أمني', JSON_UNESCAPED_UNICODE); ?>;
     const txtRxReviewReq = <?php echo json_encode($lang['rx_review_required_alert'] ?? 'يجب التحقق من الوصفة', JSON_UNESCAPED_UNICODE); ?>;
     const txtRejectOrderTitle = <?php echo json_encode($lang['reject_order_title'] ?? 'رفض الطلب', JSON_UNESCAPED_UNICODE); ?>;
@@ -718,7 +756,7 @@ include('../includes/sidebar.php');
                     tableHeader.style.display = data.has_orders ? '' : 'none';
                 }
 
-                for (const[key, value] of Object.entries(data.counts)) {
+                for (const [key, value] of Object.entries(data.counts)) {
                     const badge = document.getElementById(`count-${key}`);
                     if (badge) badge.innerText = value;
                 }
@@ -759,7 +797,7 @@ include('../includes/sidebar.php');
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#fff"></path>
                 <circle cx="12" cy="10" r="3" fill="#0A7A48"></circle>
                </svg>`,
-        iconSize:[32, 32],
+        iconSize: [32, 32],
         iconAnchor: [16, 32],
     });
 
@@ -767,7 +805,7 @@ include('../includes/sidebar.php');
     function viewOrderDetails(element) {
         const jsonString = element.getAttribute('data-order');
         if (!jsonString) return;
-        
+
         const order = JSON.parse(jsonString);
         currentOrderData = order;
 

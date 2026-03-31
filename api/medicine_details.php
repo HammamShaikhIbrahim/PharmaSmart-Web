@@ -61,4 +61,3 @@ echo json_encode([
     "details" => $details,
     "pharmacies" => $pharmacies
 ]);
-?>

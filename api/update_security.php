@@ -38,4 +38,3 @@ if (mysqli_query($conn, $sql)) {
 } else {
     echo json_encode(["status" => "error", "message" => "فشل التحديث: " . mysqli_error($conn)]);
 }
-?>

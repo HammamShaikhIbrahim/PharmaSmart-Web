@@ -16,20 +16,20 @@ include_once '../config/database.php';
 $data = json_decode(file_get_contents("php://input"));
 
 if (!empty($data->email) && !empty($data->password)) {
-    
+
     $email = mysqli_real_escape_string($conn, $data->email);
     $password = $data->password;
-    
+
     // البحث عن المستخدم في قاعدة البيانات (دور المريض RoleID = 3)
     $query = "SELECT * FROM User WHERE Email = '$email' AND RoleID = 3";
     $result = mysqli_query($conn, $query);
-    
+
     if (mysqli_num_rows($result) > 0) {
         $user = mysqli_fetch_assoc($result);
-        
+
         // التحقق من صحة كلمة المرور (سواء كانت مشفرة أو نص عادي للتوافق)
         if (password_verify($password, $user['Password']) || $password === $user['Password']) {
-            
+
             // الرد بالنجاح مع إرسال بيانات المريض للتطبيق ليحفظها
             echo json_encode([
                 "status" => "success",
@@ -42,7 +42,6 @@ if (!empty($data->email) && !empty($data->password)) {
                     "phone" => $user['Phone']
                 ]
             ]);
-            
         } else {
             echo json_encode(["status" => "error", "message" => "كلمة المرور غير صحيحة!"]);
         }
@@ -52,4 +51,3 @@ if (!empty($data->email) && !empty($data->password)) {
 } else {
     echo json_encode(["status" => "error", "message" => "الرجاء إدخال البريد الإلكتروني وكلمة المرور!"]);
 }
-?>
