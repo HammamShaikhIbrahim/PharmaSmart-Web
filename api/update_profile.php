@@ -1,6 +1,6 @@
 <?php
 // ==========================================
-// تحديث الملف الشخصي(تعديل الملف الشخصي)
+// تحديث الملف الشخصي (بدون رقم الهاتف)
 // ==========================================
 
 header("Access-Control-Allow-Origin: *");
@@ -17,9 +17,8 @@ if (!empty($data->user_id) && !empty($data->fname) && !empty($data->lname)) {
     $user_id = (int)$data->user_id;
     $fname   = mysqli_real_escape_string($conn, $data->fname);
     $lname   = mysqli_real_escape_string($conn, $data->lname);
-    $phone   = isset($data->phone) ? mysqli_real_escape_string($conn, $data->phone) : '';
 
-    $sql = "UPDATE User SET Fname='$fname', Lname='$lname', Phone='$phone'
+    $sql = "UPDATE User SET Fname='$fname', Lname='$lname' 
             WHERE UserID=$user_id AND RoleID=3";
 
     if (mysqli_query($conn, $sql)) {
@@ -30,3 +29,4 @@ if (!empty($data->user_id) && !empty($data->fname) && !empty($data->lname)) {
 } else {
     echo json_encode(["status" => "error", "message" => "بيانات ناقصة"]);
 }
+?>
