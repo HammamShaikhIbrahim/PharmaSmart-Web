@@ -106,7 +106,7 @@ $orders_query = "
     JOIN PharmacyStock ps ON oi.StockID = ps.StockID
     LEFT JOIN Prescription pr ON o.OrderID = pr.OrderID
     WHERE ps.PharmacistID = $pharmacist_id $status_condition $search_condition
-    ORDER BY
+    ORDER BY 
         FIELD(o.Status, 'Pending', 'Accepted', 'Delivered', 'Rejected'),
         o.OrderDate DESC
 ";
@@ -134,8 +134,9 @@ if ($has_orders) {
         $grouped_orders[$order['UserID']][] = $order;
     }
 }
+
 // ==========================================
-// 4. هندسة الـ AJAX (رسم الجدول برمجياً) - تصميم الشجرة (Tree View)
+// 4. هندسة الـ AJAX (رسم الجدول برمجياً) - تصميم الشجرة (Tree View) المطور
 // ==========================================
 ob_start();
 if ($has_orders) {
@@ -143,35 +144,20 @@ if ($has_orders) {
         $has_multiple = count($user_orders) > 1;
         $group_id = 'user_group_' . $user_id;
 
+        // المرور على جميع طلبات المريض (الأول سيكون هو الأب، والباقي أبناء)
         foreach ($user_orders as $index => $order) {
             $is_main_row = ($index === 0);
 
-            $statusColor = 'bg-transparent border border-gray-400 text-gray-400';
-            $statusIcon = 'circle';
-
-            if ($order['Status'] == 'Pending') {
-                $statusColor = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800';
-                $statusIcon = 'clock-3';
-            } elseif ($order['Status'] == 'Accepted') {
-                $statusColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800';
-                $statusIcon = 'package-open';
-            } elseif ($order['Status'] == 'Delivered') {
-                $statusColor = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800';
-                $statusIcon = 'check-circle';
-            } elseif ($order['Status'] == 'Rejected') {
-                $statusColor = 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800';
-                $statusIcon = 'x-circle';
-            }
-
             $current_items = $order_items_data[$order['OrderID']] ?? [];
             $has_controlled = array_reduce($current_items, fn($carry, $item) => $carry || $item['IsControlled'] == 1, false);
-
+            
             $calculated_total = 0;
             foreach ($current_items as $c_item) {
                 $calculated_total += ($c_item['Quantity'] * $c_item['SoldPrice']);
             }
             $final_total = (count($current_items) > 0) ? $calculated_total : 0;
 
+            // تجهيز الداتا للـ Modal
             $order_data = [
                 'id' => $order['OrderID'],
                 'date' => date('d M Y, h:i A', strtotime($order['OrderDate'])),
@@ -190,75 +176,101 @@ if ($has_orders) {
             ];
             $order_json = htmlspecialchars(json_encode($order_data), ENT_QUOTES, 'UTF-8');
 
-            // 💡 التصميم السحري الجديد لفصل الأب عن الأبناء
-            if ($is_main_row) {
-                // صف أساسي (الأب)
-                $row_classes = "hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 group cursor-pointer border-b border-gray-100 dark:border-slate-700";
-                // إذا كان له أبناء نضع زر التوسيع، وإلا زر العين فقط
-                $action_button = $has_multiple
-                    ? '<button class="px-3 py-1.5 bg-[#0A7A48]/10 dark:bg-[#4ADE80]/10 rounded-lg text-[#0A7A48] dark:text-[#4ADE80] hover:bg-[#0A7A48]/20 transition-colors flex items-center justify-center gap-1 mx-auto shadow-sm" onclick="event.stopPropagation(); toggleSubOrders(\'' . $group_id . '\', this)">
-                        <span class="text-[12px] font-black">' . (count($user_orders) - 1) . '+</span>
-                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-300 toggle-icon"></i>
-                       </button>'
-                    : '<button class="p-2 bg-[#0A7A48]/10 dark:bg-[#334155] rounded-lg text-[#0A7A48] dark:text-[#4ADE80] hover:bg-[#0A7A48] hover:text-white transition-colors shadow-sm" onclick="event.stopPropagation(); viewOrderDetails(this.closest(\'tr\'))">
-                        <i data-lucide="eye" class="w-4 h-4"></i>
-                       </button>';
-            } else {
-                // صف فرعي (الأبناء) - لون أغمق قليلاً وتصميم متداخل
-                $row_classes = "sub-row-{$group_id} hidden bg-gray-50/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all border-b border-gray-100/50 dark:border-slate-700/50 relative";
-                $action_button = '<button class="p-2 bg-gray-200 dark:bg-slate-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-[#0A7A48] hover:text-white transition-colors shadow-sm" onclick="event.stopPropagation(); viewOrderDetails(this.closest(\'tr\'))">
-                                    <i data-lucide="eye" class="w-4 h-4"></i>
-                                  </button>';
+            // ألوان الأيقونات والحالة
+            $statusColor = 'bg-transparent border border-gray-400 text-gray-400';
+            $statusIcon = 'circle';
+
+            if ($order['Status'] == 'Pending') {
+                $statusColor = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800';
+                $statusIcon = 'clock-3';
+            } elseif ($order['Status'] == 'Accepted') {
+                $statusColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800';
+                $statusIcon = 'package-open';
+            } elseif ($order['Status'] == 'Delivered') {
+                $statusColor = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800';
+                $statusIcon = 'check-circle';
+            } elseif ($order['Status'] == 'Rejected') {
+                $statusColor = 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800';
+                $statusIcon = 'x-circle';
             }
 
-            // أيقونة التفرع (L-shape) للطلبات الفرعية
-            $sub_indicator = !$is_main_row
-                ? '<div class="absolute right-0 top-0 bottom-0 w-2 bg-[#0A7A48]/20 dark:bg-[#4ADE80]/20"></div><i data-lucide="corner-down-left" class="w-5 h-5 text-gray-400 inline-block ml-3 opacity-60"></i>'
-                : '';
-?>
-            <tr class="<?php echo $row_classes; ?>" data-order="<?php echo $order_json; ?>" <?php if ($is_main_row) echo 'onclick="viewOrderDetails(this)"'; ?>>
+            $items_count = count($current_items);
 
-                <!-- رقم الطلب مع مؤشر التفرع -->
+            // 💡 التصميم المطور للآباء والأبناء
+            if ($is_main_row) {
+                // صف أساسي (الأب)
+                $row_classes = "hover:bg-[#E6F7ED] dark:hover:bg-[#044E29]/30 transition-colors duration-200 group cursor-pointer border-b border-gray-100 dark:border-slate-700 relative z-10";
+                
+                $btn_view = '<button class="p-2 bg-[#0A7A48]/10 dark:bg-[#334155] rounded-lg text-[#0A7A48] dark:text-[#4ADE80] hover:bg-[#0A7A48] hover:text-white transition-colors shadow-sm" onclick="event.stopPropagation(); viewOrderDetails(this.closest(\'tr\'))" title="التفاصيل">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                             </button>';
+                
+                $btn_toggle = '';
+                if ($has_multiple) {
+                    $total_orders = count($user_orders);
+                    $btn_toggle = '<button class="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800 rounded-lg hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-center gap-1.5 shadow-sm" onclick="event.stopPropagation(); toggleTree(\''.$group_id.'\', this)">
+                                    <span class="text-[12px] font-black">' . $total_orders . ' طلبات</span>
+                                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-300 toggle-icon"></i>
+                                   </button>';
+                }
+                $action_buttons = "<div class=\"flex justify-center items-center gap-2\">{$btn_toggle}{$btn_view}</div>";
+                
+                $order_id_display = '<div class="font-black text-gray-800 dark:text-white flex items-center justify-start gap-1.5 w-full" dir="ltr">
+                                        <span class="text-[#0A7A48] dark:text-[#4ADE80] text-xs font-black">#</span>ORD-' . $order['OrderID'] . '
+                                     </div>';
+            } else {
+                // صف فرعي (الأبناء)
+                // يتميز بلون خلفية مختلف، وحد جانبي أزرق ليوضح الانتماء
+                $row_classes = "sub-row-{$group_id} hidden bg-slate-50/80 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-all border-b border-gray-100/50 dark:border-slate-700/50 relative rtl:border-r-4 ltr:border-l-4 border-blue-400 dark:border-blue-600";
+                
+                $action_buttons = '<div class="flex justify-center items-center"><button class="p-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors shadow-sm" onclick="event.stopPropagation(); viewOrderDetails(this.closest(\'tr\'))" title="التفاصيل">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                   </button></div>';
+                                   
+                $order_id_display = '<div class="font-bold text-gray-600 dark:text-gray-300 flex items-center justify-start gap-1.5 w-full" dir="ltr">
+                                        <i data-lucide="corner-down-right" class="w-4 h-4 text-blue-400 opacity-70 rtl:-scale-x-100"></i>
+                                        <span class="text-blue-500 dark:text-blue-400 text-[10px] font-black">#</span>ORD-' . $order['OrderID'] . '
+                                     </div>';
+            }
+?>
+            <tr class="<?php echo $row_classes; ?>" data-order="<?php echo $order_json; ?>" onclick="viewOrderDetails(this)">
+
                 <td class="p-5 whitespace-nowrap text-right relative">
-                    <div class="font-black text-gray-800 dark:text-white flex items-center justify-start gap-1.5 w-full" dir="ltr">
-                        <?php echo $sub_indicator; ?>
-                        <span class="text-[#0A7A48] dark:text-[#4ADE80] text-xs font-black">#</span>ORD-<?php echo $order['OrderID']; ?>
-                    </div>
+                    <?php echo $order_id_display; ?>
                 </td>
 
                 <td class="p-5 whitespace-nowrap">
-                    <div class="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">
-                        <i data-lucide="calendar" class="w-4 h-4 text-[#0A7A48] shrink-0"></i>
+                    <div class="flex items-center gap-2 <?php echo $is_main_row ? 'text-sm font-bold text-gray-700 dark:text-gray-200' : 'text-xs font-bold text-gray-600 dark:text-gray-400'; ?> mb-1">
+                        <i data-lucide="calendar" class="w-4 h-4 <?php echo $is_main_row ? 'text-[#0A7A48]' : 'text-gray-400'; ?> shrink-0"></i>
                         <span><?php echo date('d M Y', strtotime($order['OrderDate'])); ?></span>
                     </div>
-                    <div class="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400">
-                        <i data-lucide="clock" class="w-3.5 h-3.5 text-[#0A7A48]/60 shrink-0"></i>
+                    <div class="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-500">
+                        <i data-lucide="clock" class="w-3.5 h-3.5 <?php echo $is_main_row ? 'text-[#0A7A48]/60' : 'text-gray-400/60'; ?> shrink-0"></i>
                         <span dir="ltr"><?php echo date('h:i A', strtotime($order['OrderDate'])); ?></span>
                     </div>
                 </td>
 
                 <td class="p-5 whitespace-nowrap">
                     <div class="flex items-center gap-3 mb-1.5">
-                        <!-- تمييز الأبناء بتصغير الاسم قليلاً وجعله رمادي -->
                         <span class="font-bold <?php echo $is_main_row ? 'text-gray-800 dark:text-white' : 'text-gray-600 dark:text-gray-300'; ?>"><?php echo htmlspecialchars($order['Fname'] . ' ' . $order['Lname']); ?></span>
                     </div>
                     <div class="text-sm text-gray-500 dark:text-gray-400 font-medium flex items-center gap-2">
-                        <i data-lucide="phone" class="w-4 h-4 text-[#0A7A48]/70 shrink-0"></i>
+                        <i data-lucide="phone" class="w-4 h-4 <?php echo $is_main_row ? 'text-[#0A7A48]/70' : 'text-gray-400'; ?> shrink-0"></i>
                         <span dir="ltr"><?php echo htmlspecialchars($order['Phone'] ?? ($lang['no_phone'] ?? '')); ?></span>
                     </div>
                 </td>
 
                 <td class="p-5">
-                    <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 font-medium">
-                        <i data-lucide="map-pin" class="w-4 h-4 text-[#0A7A48]/70 shrink-0"></i>
+                    <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 font-medium">
+                        <i data-lucide="map-pin" class="w-4 h-4 <?php echo $is_main_row ? 'text-[#0A7A48]/70' : 'text-gray-400'; ?> shrink-0"></i>
                         <span class="leading-relaxed font-medium line-clamp-2"><?php echo htmlspecialchars($order['DeliveryAddress'] ?? ($lang['pickup_pharmacy'] ?? '')); ?></span>
                     </div>
                 </td>
 
                 <td class="p-5 text-center whitespace-nowrap">
                     <div class="flex flex-col items-center gap-1.5">
-                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#0A7A48]/10 dark:bg-[#4ADE80]/10 text-[#0A7A48] dark:text-[#4ADE80] font-black text-[13px] shadow-sm border border-[#0A7A48]/15">
-                            <?php echo count($current_items); ?>
+                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full <?php echo $is_main_row ? 'bg-[#0A7A48]/10 text-[#0A7A48] dark:bg-[#4ADE80]/10 dark:text-[#4ADE80] border border-[#0A7A48]/15' : 'bg-gray-200 text-gray-600 dark:bg-slate-700 dark:text-gray-300 border border-gray-300 dark:border-slate-600'; ?> font-black text-[13px] shadow-sm">
+                            <?php echo $items_count; ?>
                         </span>
                         <?php if ($has_controlled): ?>
                             <span class="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 text-[9px] px-1.5 py-0.5 rounded-full font-black border border-amber-200 dark:border-amber-800 uppercase tracking-wide">Rx</span>
@@ -267,7 +279,7 @@ if ($has_orders) {
                 </td>
 
                 <td class="p-5 whitespace-nowrap text-center">
-                    <div class="font-black <?php echo $is_main_row ? 'text-[#0A7A48] dark:text-[#4ADE80]' : 'text-gray-700 dark:text-gray-300'; ?> text-[15px] mb-1.5" dir="ltr"><?php echo number_format($final_total, 2); ?> ₪</div>
+                    <div class="font-black <?php echo $is_main_row ? 'text-[#0A7A48] dark:text-[#4ADE80]' : 'text-gray-600 dark:text-gray-300'; ?> text-[15px] mb-1.5" dir="ltr"><?php echo number_format($final_total, 2); ?> ₪</div>
                     <?php if ($order['PaymentMethod'] == 'COD'): ?>
                         <span class="inline-flex items-center gap-1 bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 text-[10px] px-2 py-0.5 rounded-full font-bold border border-gray-200 dark:border-slate-600">
                             <i data-lucide="banknote" class="w-3 h-3"></i> COD
@@ -295,16 +307,14 @@ if ($has_orders) {
                 </td>
 
                 <td class="p-5 text-center">
-                    <div class="flex justify-center items-center gap-1">
-                        <?php echo $action_button; ?>
-                    </div>
+                    <?php echo $action_buttons; ?>
                 </td>
             </tr>
-    <?php
+<?php
         }
     }
 } else {
-    ?>
+?>
     <tr>
         <td colspan="8" class="p-20">
             <div class="flex flex-col items-center justify-center text-center">
@@ -341,7 +351,7 @@ include('../includes/header.php');
 include('../includes/sidebar.php');
 ?>
 
-<!-- استدعاء ملفات مكتبة الخرائط Leaflet.js (التصميم والسكربت) -->
+<!-- استدعاء ملفات مكتبة الخرائط Leaflet.js -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -391,25 +401,11 @@ include('../includes/sidebar.php');
         color: #94a3b8;
     }
 
-    label[for="filter-All"]:hover {
-        color: #0A7A48;
-    }
-
-    label[for="filter-Pending"]:hover {
-        color: #d97706;
-    }
-
-    label[for="filter-Accepted"]:hover {
-        color: #2563eb;
-    }
-
-    label[for="filter-Delivered"]:hover {
-        color: #059669;
-    }
-
-    label[for="filter-Rejected"]:hover {
-        color: #e11d48;
-    }
+    label[for="filter-All"]:hover { color: #0A7A48; }
+    label[for="filter-Pending"]:hover { color: #d97706; }
+    label[for="filter-Accepted"]:hover { color: #2563eb; }
+    label[for="filter-Delivered"]:hover { color: #059669; }
+    label[for="filter-Rejected"]:hover { color: #e11d48; }
 
     .glass-radio-group input:checked+label {
         color: #ffffff !important;
@@ -481,40 +477,27 @@ include('../includes/sidebar.php');
         box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35);
     }
 
-    html[dir="rtl"] #filter-Pending:checked~.glass-glider {
-        transform: translateX(-100%);
-    }
+    html[dir="rtl"] #filter-Pending:checked~.glass-glider { transform: translateX(-100%); }
+    html[dir="rtl"] #filter-Accepted:checked~.glass-glider { transform: translateX(-200%); }
+    html[dir="rtl"] #filter-Delivered:checked~.glass-glider { transform: translateX(-300%); }
+    html[dir="rtl"] #filter-Rejected:checked~.glass-glider { transform: translateX(-400%); }
 
-    html[dir="rtl"] #filter-Accepted:checked~.glass-glider {
-        transform: translateX(-200%);
-    }
-
-    html[dir="rtl"] #filter-Delivered:checked~.glass-glider {
-        transform: translateX(-300%);
-    }
-
-    html[dir="rtl"] #filter-Rejected:checked~.glass-glider {
-        transform: translateX(-400%);
-    }
-
-    .modal-scroll::-webkit-scrollbar {
-        width: 6px;
-    }
-
+    .modal-scroll::-webkit-scrollbar { width: 6px; }
     .modal-scroll::-webkit-scrollbar-thumb {
         background-color: rgba(10, 122, 72, 0.3);
         border-radius: 10px;
     }
-
     .dark .modal-scroll::-webkit-scrollbar-thumb {
         background-color: rgba(74, 222, 128, 0.3);
     }
 </style>
 
-<main class="flex-1 p-8 bg-[#F2FBF5] dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
+<main class="flex-1 p-8 bg-blue-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
+
     <?php include('../includes/topbar.php'); ?>
 
     <div class="mb-6 flex flex-col xl:flex-row justify-between items-center gap-6">
+
         <h1 class="text-3xl font-black text-gray-800 dark:text-white flex items-center gap-3 shrink-0 w-full xl:w-auto">
             <i data-lucide="shopping-bag" class="text-[#0A7A48] dark:text-[#4ADE80] w-[42px] h-[30px]"></i> <?php echo isset($lang['orders']) ? $lang['orders'] : 'الطلبات'; ?>
         </h1>
@@ -555,7 +538,7 @@ include('../includes/sidebar.php');
         </div>
     </div>
 
-    <!-- الجدول -->
+    <!-- الجدول الرئيسي -->
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 overflow-hidden mb-6">
         <div class="overflow-x-auto" id="ordersTableContainer" style="transition: opacity 0.3s ease;">
             <table class="w-full border-collapse min-w-[1050px]">
@@ -582,21 +565,19 @@ include('../includes/sidebar.php');
             </table>
         </div>
     </div>
+
 </main>
 
-<!-- البطاقة المنبثقة للطلب (المودال) -->
-<div id="orderModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[100] hidden flex justify-center items-center transition-opacity p-4">
-
-    <!-- النافذة الثابتة كعمود واحد -->
+<!-- ==========================================
+      2. النافذة المنبثقة لتفاصيل طلب واحد 
+========================================== -->
+<div id="orderModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[110] hidden flex justify-center items-center transition-opacity p-4">
     <div id="modalContentWrapper" class="bg-white dark:bg-slate-900 w-full max-w-xl max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col transform transition-all border border-gray-200 dark:border-slate-700 relative">
-
         <button onclick="closeOrderModal()" class="absolute top-5 rtl:left-5 ltr:right-5 flex items-center justify-center w-8 h-8 rounded-full bg-gray-100/80 text-gray-500 hover:bg-rose-500 hover:text-white dark:bg-slate-800/80 dark:text-gray-400 dark:hover:bg-rose-500 dark:hover:text-white backdrop-blur-sm transition-all shadow-sm z-50">
             <i data-lucide="x" class="w-4 h-4"></i>
         </button>
 
-        <!-- المحتوى الموحد -->
         <div id="invoiceSection" class="flex-1 flex flex-col relative z-10 w-full min-h-0 transition-all duration-300">
-
             <!-- الهيدر الثابت -->
             <div id="modalHeader" class="shrink-0 p-5 border-b border-gray-100 dark:border-slate-700 transition-colors relative overflow-hidden">
                 <div class="flex justify-between items-start relative z-10">
@@ -611,9 +592,8 @@ include('../includes/sidebar.php');
                 </div>
             </div>
 
-            <!-- جسم المودال القابل للسكرول -->
+            <!-- جسم المودال -->
             <div class="p-5 overflow-y-auto modal-scroll flex-1 space-y-5 relative">
-
                 <!-- تنبيه سبب الرفض -->
                 <div id="rejectionAlert" class="hidden bg-rose-50 dark:bg-rose-900/20 border-l-4 border-rose-500 p-4 rounded-xl">
                     <div class="flex items-start gap-3">
@@ -682,7 +662,7 @@ include('../includes/sidebar.php');
 
             </div>
 
-            <!-- الفوتر (المبلغ والأزرار الثابتة في الأسفل) -->
+            <!-- الفوتر -->
             <div id="modalFooter" class="shrink-0 p-5 border-t border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-900/50">
                 <div class="flex justify-between items-end mb-4">
                     <span class="text-sm font-bold text-gray-500"><?php echo isset($lang['total_required']) ? $lang['total_required'] : 'الإجمالي المطلوب:'; ?></span>
@@ -691,7 +671,6 @@ include('../includes/sidebar.php');
                 <div id="dynamicActionButtons" class="flex gap-2"></div>
             </div>
         </div>
-
     </div>
 </div>
 
@@ -700,7 +679,6 @@ include('../includes/sidebar.php');
         lucide.createIcons();
     });
 
-    // تم استخدام json_encode هنا لتجنب أي أخطاء في الـ JS إذا احتوت الترجمة على علامات اقتباس
     const txtNoPhone = <?php echo json_encode($lang['no_phone'] ?? 'لا يوجد رقم', JSON_UNESCAPED_UNICODE); ?>;
     const txtPickup = <?php echo json_encode($lang['pickup_pharmacy'] ?? 'استلام من الصيدلية', JSON_UNESCAPED_UNICODE); ?>;
     const txtQty = <?php echo json_encode($lang['quantity'] ?? 'الكمية:', JSON_UNESCAPED_UNICODE); ?>;
@@ -774,17 +752,17 @@ include('../includes/sidebar.php');
         }, 300);
     }
 
-    function toggleSubOrders(groupId, btnElement) {
-        const subRows = document.querySelectorAll('.sub-row-' + groupId);
-        const icon = btnElement.querySelector('.toggle-icon');
+    // 💡 دالة الجافاسكربت المسؤولة عن فتح أو إغلاق الشجرة للطلبات المتعددة
+    function toggleTree(groupId, btn) {
+        const rows = document.querySelectorAll('.sub-row-' + groupId);
+        const icon = btn.querySelector('.toggle-icon');
 
-        subRows.forEach(row => {
+        rows.forEach(row => {
             row.classList.toggle('hidden');
         });
 
         if (icon) {
-            if (icon.classList.contains('rotate-180')) icon.classList.remove('rotate-180');
-            else icon.classList.add('rotate-180');
+            icon.classList.toggle('rotate-180');
         }
     }
 
@@ -801,12 +779,15 @@ include('../includes/sidebar.php');
         iconAnchor: [16, 32],
     });
 
-    // تم تعديل الدالة لتستقبل الـ element مباشرة وقراءة الـ data-order لحل مشكلة توقف العين عن العمل
+    // دالة فتح المودال لأي طلب (سواء الأب أو الأبناء)
     function viewOrderDetails(element) {
         const jsonString = element.getAttribute('data-order');
         if (!jsonString) return;
-
         const order = JSON.parse(jsonString);
+        openOrderModalData(order);
+    }
+
+    function openOrderModalData(order) {
         currentOrderData = order;
 
         document.getElementById('modalOrderId').innerText = `#${order.id}`;
