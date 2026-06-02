@@ -1,5 +1,4 @@
 <?php
-
 // ==========================================
 // 1. الإعدادات الأساسية والاتصال بقاعدة البيانات
 // ==========================================
@@ -17,47 +16,54 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role_id'] != 2) {
 $pharmacist_id = $_SESSION['user_id'];
 
 // ==========================================
-// 2. معالجة تحديث حالة الطلب (Actions) مع سبب الرفض وخصم المخزون
+// 2. معالجة تحديث حالة الطلب (Actions)
 // ==========================================
 
 if (isset($_GET['action']) && isset($_GET['order_id'])) {
     $order_id = intval($_GET['order_id']);
     $action = mysqli_real_escape_string($conn, $_GET['action']);
-
+    
     // التقاط سبب الرفض إن وُجد
     $reason = isset($_GET['reason']) ? mysqli_real_escape_string($conn, $_GET['reason']) : '';
 
     $valid_actions = ['Accepted', 'Rejected', 'Delivered'];
 
     if (in_array($action, $valid_actions)) {
+        
+        //  بدء معاملة لضمان تنفيذ الإرجاع مع التحديث معاً
+        mysqli_begin_transaction($conn);
+        
+        try {
+            if ($action == 'Rejected') {
+                // تحديث الحالة لرفض مع كتابة السبب
+                mysqli_query($conn, "UPDATE `Order` SET Status = 'Rejected', RejectionReason = '$reason' WHERE OrderID = $order_id");
 
-        // التحقق مما إذا كان الإجراء هو "رفض" لإدخال السبب مع الحالة
-        if ($action == 'Rejected') {
-            mysqli_query($conn, "UPDATE `Order` SET Status = '$action', RejectionReason = '$reason' WHERE OrderID = $order_id");
-        } else {
-            // تحديث الحالة لباقي الإجراءات
-            mysqli_query($conn, "UPDATE `Order` SET Status = '$action' WHERE OrderID = $order_id");
-        }
-
-        // في حال القبول، يتم تأكيد الوصفة الطبية
-        if ($action == 'Accepted') {
-            mysqli_query($conn, "UPDATE Prescription SET IsVerified = 1 WHERE OrderID = $order_id");
-        }
-
-        // خصم المخزون فقط عندما يتم التوصيل بنجاح
-        if ($action == 'Delivered') {
-            // جلب جميع الأدوية التابعة لهذا الطلب
-            $items_query = mysqli_query($conn, "SELECT StockID, Quantity FROM OrderItems WHERE OrderID = $order_id");
-            while ($item = mysqli_fetch_assoc($items_query)) {
-                $stock_id = $item['StockID'];
-                $quantity = $item['Quantity'];
-                // خصم الكمية (مع التأكد أن المخزون لا يصبح بالسالب)
-                mysqli_query($conn, "UPDATE PharmacyStock SET Stock = GREATEST(Stock - $quantity, 0) WHERE StockID = $stock_id");
+                //  إعادة الكمية للمخزون لأن الطلب رُفض
+                $items_query = mysqli_query($conn, "SELECT StockID, Quantity FROM OrderItems WHERE OrderID = $order_id");
+                while ($item = mysqli_fetch_assoc($items_query)) {
+                    $s_id = $item['StockID'];
+                    $qty = $item['Quantity'];
+                    mysqli_query($conn, "UPDATE PharmacyStock SET Stock = Stock + $qty WHERE StockID = $s_id");
+                }
+            } 
+            elseif ($action == 'Accepted') {
+                // قبول الطلب واعتماد الوصفة
+                mysqli_query($conn, "UPDATE `Order` SET Status = 'Accepted' WHERE OrderID = $order_id");
+                mysqli_query($conn, "UPDATE Prescription SET IsVerified = 1 WHERE OrderID = $order_id");
+            } 
+            elseif ($action == 'Delivered') {
+                // تحديث الحالة فقط (الخصم الفعلي تم عند الطلب)
+                mysqli_query($conn, "UPDATE `Order` SET Status = 'Delivered' WHERE OrderID = $order_id");
             }
-        }
 
-        header("Location: orders.php");
-        exit();
+            mysqli_commit($conn);
+            header("Location: orders.php");
+            exit();
+
+        } catch (Exception $e) {
+            mysqli_rollback($conn);
+            die("خطأ في تحديث الحالة: " . $e->getMessage());
+        }
     }
 }
 
@@ -106,13 +112,13 @@ $orders_query = "
     JOIN PharmacyStock ps ON oi.StockID = ps.StockID
     LEFT JOIN Prescription pr ON o.OrderID = pr.OrderID
     WHERE ps.PharmacistID = $pharmacist_id $status_condition $search_condition
-    ORDER BY 
+    ORDER BY
         FIELD(o.Status, 'Pending', 'Accepted', 'Delivered', 'Rejected'),
         o.OrderDate DESC
 ";
 $orders_result = mysqli_query($conn, $orders_query);
 
-// جلب تفاصيل الأدوية (Products inside the order)
+// جلب تفاصيل الأدوية
 $order_items_data = [];
 $items_query = "
     SELECT oi.OrderID, sm.Name, oi.Quantity, oi.SoldPrice, sm.IsControlled
@@ -136,7 +142,7 @@ if ($has_orders) {
 }
 
 // ==========================================
-// 4. هندسة الـ AJAX (تصميم الـ Accordion المذهل والكروت الأفقية مع ألوان جدول طبيعية)
+// 4. هندسة الـ AJAX (تصميم الـ Accordion)
 // ==========================================
 ob_start();
 if ($has_orders) {
@@ -145,9 +151,7 @@ if ($has_orders) {
         $has_multiple = $total_orders > 1;
         $group_id = 'user_group_' . $user_id;
 
-        //  1. الطلب الأساسي (الأحدث) الذي سيظهر كصف في الجدول
         $main_order = $user_orders[0];
-
         $current_items = $order_items_data[$main_order['OrderID']] ?? [];
         $has_controlled = array_reduce($current_items, fn($carry, $item) => $carry || $item['IsControlled'] == 1, false);
         $calculated_total = 0;
@@ -156,7 +160,6 @@ if ($has_orders) {
         }
         $final_total = (count($current_items) > 0) ? $calculated_total : 0;
 
-        // تجهيز بيانات المودال للطلب الأب
         $order_data = [
             'id' => $main_order['OrderID'],
             'date' => date('d M Y, h:i A', strtotime($main_order['OrderDate'])),
@@ -175,7 +178,6 @@ if ($has_orders) {
         ];
         $order_json = htmlspecialchars(json_encode($order_data), ENT_QUOTES, 'UTF-8');
 
-        // ألوان حالة الطلب الأساسية
         $statusColor = 'bg-gray-100 text-gray-500 border-gray-200';
         $statusIcon = 'circle';
         if ($main_order['Status'] == 'Pending') {
@@ -195,14 +197,12 @@ if ($has_orders) {
         $items_count = count($current_items);
         $order_word = $lang['orders'] ?? 'طلبات';
 
-        //  زر العين (التفاصيل) 
         $btn_view = '<button class="p-2 bg-gray-100 dark:bg-slate-700/50 rounded-lg text-gray-500 hover:bg-[#0A7A48] hover:text-white dark:hover:bg-[#4ADE80] dark:hover:text-slate-900 transition-colors shadow-sm border border-gray-200 dark:border-slate-600" onclick="event.stopPropagation(); viewOrderDetails(this.closest(\'tr\'))" title="التفاصيل">
                         <i data-lucide="eye" class="w-4 h-4"></i>
                      </button>';
 
         $btn_toggle = '';
         if ($has_multiple) {
-            //  زر الدروب داون أزرق مريح
             $btn_toggle = '<button class="px-3 py-1.5 bg-blue-50/80 text-blue-600 border border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 rounded-lg hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 transition-all flex items-center justify-center gap-1.5 shadow-sm toggle-drawer-btn" onclick="event.stopPropagation(); toggleOrderDrawer(\'' . $group_id . '\', this)">
                                 <span class="text-[12px] font-black">' . $total_orders . ' ' . $order_word . '</span>
                                 <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-300 toggle-icon"></i>
@@ -211,7 +211,6 @@ if ($has_orders) {
 
         $action_buttons = "<div class=\"flex justify-center items-center gap-2\">{$btn_toggle}{$btn_view}</div>";
 ?>
-        <!--  الصف الرئيسي - لون طبيعي ومحايد 100% -->
         <tr class="bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors duration-200 group cursor-pointer border-b border-gray-100 dark:border-slate-700 relative z-10" data-order="<?php echo $order_json; ?>" onclick="viewOrderDetails(this)">
             <td class="p-5 whitespace-nowrap text-right">
                 <div class="font-black text-gray-800 dark:text-white flex items-center justify-start gap-1.5 w-full" dir="ltr">
@@ -285,12 +284,10 @@ if ($has_orders) {
         </tr>
 
         <?php
-        //  2. درج الكروت للطلبات القديمة (History Drawer)
         if ($has_multiple) {
             $history_title = $lang['patient_order_history'] ?? 'السجل التاريخي للطلبات';
             $total_text = $lang['total_amount'] ?? 'الإجمالي';
         ?>
-            <!--  خلفية الدرج لون محايد جداً ليفصل بين الطلبات -->
             <tr id="<?php echo $group_id; ?>" class="hidden bg-gray-50/40 dark:bg-slate-900/30">
                 <td colspan="8" class="p-0 border-b border-gray-200 dark:border-slate-700">
                     <div class="p-6 md:p-8 animate-fade-in-down border-t border-gray-100 dark:border-slate-700">
@@ -305,7 +302,6 @@ if ($has_orders) {
                             <?php
                             for ($i = 1; $i < count($user_orders); $i++) {
                                 $child_order = $user_orders[$i];
-
                                 $c_items = $order_items_data[$child_order['OrderID']] ?? [];
                                 $c_total = 0;
                                 foreach ($c_items as $c_i) {
@@ -412,7 +408,6 @@ include('../includes/header.php');
 include('../includes/sidebar.php');
 ?>
 
-<!-- استدعاء ملفات مكتبة الخرائط Leaflet.js -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -462,25 +457,11 @@ include('../includes/sidebar.php');
         color: #94a3b8;
     }
 
-    label[for="filter-All"]:hover {
-        color: #0A7A48;
-    }
-
-    label[for="filter-Pending"]:hover {
-        color: #d97706;
-    }
-
-    label[for="filter-Accepted"]:hover {
-        color: #2563eb;
-    }
-
-    label[for="filter-Delivered"]:hover {
-        color: #059669;
-    }
-
-    label[for="filter-Rejected"]:hover {
-        color: #e11d48;
-    }
+    label[for="filter-All"]:hover { color: #0A7A48; }
+    label[for="filter-Pending"]:hover { color: #d97706; }
+    label[for="filter-Accepted"]:hover { color: #2563eb; }
+    label[for="filter-Delivered"]:hover { color: #059669; }
+    label[for="filter-Rejected"]:hover { color: #e11d48; }
 
     .glass-radio-group input:checked+label {
         color: #ffffff !important;
@@ -552,53 +533,23 @@ include('../includes/sidebar.php');
         box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35);
     }
 
-    html[dir="rtl"] #filter-Pending:checked~.glass-glider {
-        transform: translateX(-100%);
-    }
+    html[dir="rtl"] #filter-Pending:checked~.glass-glider { transform: translateX(-100%); }
+    html[dir="rtl"] #filter-Accepted:checked~.glass-glider { transform: translateX(-200%); }
+    html[dir="rtl"] #filter-Delivered:checked~.glass-glider { transform: translateX(-300%); }
+    html[dir="rtl"] #filter-Rejected:checked~.glass-glider { transform: translateX(-400%); }
 
-    html[dir="rtl"] #filter-Accepted:checked~.glass-glider {
-        transform: translateX(-200%);
-    }
-
-    html[dir="rtl"] #filter-Delivered:checked~.glass-glider {
-        transform: translateX(-300%);
-    }
-
-    html[dir="rtl"] #filter-Rejected:checked~.glass-glider {
-        transform: translateX(-400%);
-    }
-
-    .modal-scroll::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .modal-scroll::-webkit-scrollbar-thumb {
-        background-color: rgba(10, 122, 72, 0.3);
-        border-radius: 10px;
-    }
-
-    .dark .modal-scroll::-webkit-scrollbar-thumb {
-        background-color: rgba(74, 222, 128, 0.3);
-    }
+    .modal-scroll::-webkit-scrollbar { width: 6px; }
+    .modal-scroll::-webkit-scrollbar-thumb { background-color: rgba(10, 122, 72, 0.3); border-radius: 10px; }
+    .dark .modal-scroll::-webkit-scrollbar-thumb { background-color: rgba(74, 222, 128, 0.3); }
 
     @keyframes fadeInDown {
-        0% {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-
-        100% {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        0% { opacity: 0; transform: translateY(-10px); }
+        100% { opacity: 1; transform: translateY(0); }
     }
-
-    .animate-fade-in-down {
-        animation: fadeInDown 0.3s ease-out forwards;
-    }
+    .animate-fade-in-down { animation: fadeInDown 0.3s ease-out forwards; }
 </style>
 
-<main class="flex-1 p-8 bg-blue-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
+<main class="flex flex-col flex-1 p-8 bg-blue-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
 
     <?php include('../includes/topbar.php'); ?>
 
@@ -644,7 +595,6 @@ include('../includes/sidebar.php');
         </div>
     </div>
 
-    <!-- الجدول الرئيسي -->
     <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-md border border-gray-200 dark:border-slate-700 overflow-hidden mb-6">
         <div class="overflow-x-auto" id="ordersTableContainer" style="transition: opacity 0.3s ease;">
             <table class="w-full border-collapse min-w-[1050px]">
@@ -674,9 +624,7 @@ include('../includes/sidebar.php');
 
 </main>
 
-<!-- ==========================================
-      2. النافذة المنبثقة لتفاصيل طلب واحد 
-========================================== -->
+<!-- النافذة المنبثقة لتفاصيل طلب واحد -->
 <div id="orderModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[110] hidden flex justify-center items-center transition-opacity p-4">
     <div id="modalContentWrapper" class="bg-white dark:bg-slate-900 w-full max-w-xl max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col transform transition-all border border-gray-200 dark:border-slate-700 relative">
         <button onclick="closeOrderModal()" class="absolute top-5 rtl:left-5 ltr:right-5 flex items-center justify-center w-8 h-8 rounded-full bg-gray-100/80 text-gray-500 hover:bg-rose-500 hover:text-white dark:bg-slate-800/80 dark:text-gray-400 dark:hover:bg-rose-500 dark:hover:text-white backdrop-blur-sm transition-all shadow-sm z-50">
@@ -745,9 +693,7 @@ include('../includes/sidebar.php');
 
                 <!-- قسم الوصفة الطبية -->
                 <div id="unifiedPrescriptionContainer" class="hidden flex-col items-center justify-center bg-amber-50/30 dark:bg-amber-900/10 border border-amber-100 dark:border-slate-700/50 rounded-2xl p-4 relative">
-                    <div id="rxHeader" class="w-full mb-3 flex items-center gap-3">
-                        <!-- يُحقن بواسطة الجافاسكربت -->
-                    </div>
+                    <div id="rxHeader" class="w-full mb-3 flex items-center gap-3"></div>
 
                     <a id="prescriptionImgLink" href="#" target="_blank" class="block w-full max-w-[250px] relative group rounded-xl overflow-hidden border-4 border-white dark:border-slate-800 shadow-lg mb-4 bg-gray-200 dark:bg-slate-800 ring-2 ring-transparent group-hover:ring-amber-400 transition-all duration-300">
                         <img id="prescriptionImg" src="" onerror="this.src='https://placehold.co/400x600/e2e8f0/475569?text=صورة+غير+متوفرة';" alt="Prescription" class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-110 min-h-[150px]">
@@ -792,7 +738,7 @@ include('../includes/sidebar.php');
     const txtAccept = <?php echo json_encode($lang['accept_prepare'] ?? 'قبول وتجهيز', JSON_UNESCAPED_UNICODE); ?>;
     const txtDelivered = <?php echo json_encode($lang['delivered_successfully'] ?? 'تم تسليم الطلب بنجاح', JSON_UNESCAPED_UNICODE); ?>;
     const txtActionTaken = <?php echo json_encode($lang['action_taken'] ?? 'تم اتخاذ إجراء مسبقاً', JSON_UNESCAPED_UNICODE); ?>;
-
+    
     const txtSecurityAlert = <?php echo json_encode($lang['security_alert'] ?? 'تنبيه أمني', JSON_UNESCAPED_UNICODE); ?>;
     const txtRxReviewReq = <?php echo json_encode($lang['rx_review_required_alert'] ?? 'يجب التحقق من الوصفة', JSON_UNESCAPED_UNICODE); ?>;
     const txtRejectOrderTitle = <?php echo json_encode($lang['reject_order_title'] ?? 'رفض الطلب', JSON_UNESCAPED_UNICODE); ?>;
@@ -858,31 +804,19 @@ include('../includes/sidebar.php');
         }, 300);
     }
 
-    //  دالة الجافاسكربت المسؤولة عن فتح أو إغلاق درج البطاقات الأفقية
     function toggleOrderDrawer(groupId, btn) {
         const drawerRow = document.getElementById(groupId);
         const icon = btn.querySelector('.toggle-icon');
 
         if (drawerRow.classList.contains('hidden')) {
-            // فتح الدرج
             drawerRow.classList.remove('hidden');
-
-            // جعل الزر داكن (لون نشط) ليوضح أنه مفتوح
             btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600', 'dark:bg-blue-500', 'dark:border-blue-500');
             btn.classList.remove('bg-blue-600/10', 'text-blue-600', 'dark:bg-blue-500/10', 'dark:text-blue-400');
-
-            // تدوير السهم للأعلى
             if (icon) icon.classList.add('rotate-180');
-
         } else {
-            // إغلاق الدرج
             drawerRow.classList.add('hidden');
-
-            // إعادة الزر لشكله العادي
             btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600', 'dark:bg-blue-500', 'dark:border-blue-500');
             btn.classList.add('bg-blue-600/10', 'text-blue-600', 'dark:bg-blue-500/10', 'dark:text-blue-400');
-
-            // إرجاع السهم للأسفل
             if (icon) icon.classList.remove('rotate-180');
         }
     }
@@ -900,7 +834,6 @@ include('../includes/sidebar.php');
         iconAnchor: [16, 32],
     });
 
-    // دالة فتح المودال لأي طلب (سواء الأب أو الأبناء)
     function viewOrderDetails(element) {
         const jsonString = element.getAttribute('data-order');
         if (!jsonString) return;
@@ -1071,6 +1004,7 @@ include('../includes/sidebar.php');
             L.tileLayer(tileUrl, {
                 maxZoom: 19
             }).addTo(deliveryMapInstance);
+            
             L.marker([order.lat, order.lng], {
                 icon: customMapIcon
             }).addTo(deliveryMapInstance);
