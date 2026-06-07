@@ -260,17 +260,18 @@ include('../includes/sidebar.php');
 
     //  دالة التأكيد (SweetAlert)
     function confirmDelete(id) {
+        // 💡 الإصلاح هنا: استدعاء المتغيرات من الـ PHP
         Swal.fire({
-            title: Lang.title,
-            text: Lang.text,
+            title: "<?php echo isset($lang['swal_title']) ? $lang['swal_title'] : 'هل أنت متأكد؟'; ?>",
+            text: "<?php echo isset($lang['swal_text']) ? $lang['swal_text'] : 'لن تتمكن من التراجع عن هذا الإجراء!'; ?>",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#6b7280',
-            confirmButtonText: Lang.confirm,
-            cancelButtonText: Lang.cancel,
-            background: Lang.isDark ? '#1e293b' : '#fff',
-            color: Lang.isDark ? '#f8fafc' : '#1f2937'
+            confirmButtonText: "<?php echo isset($lang['swal_confirm']) ? $lang['swal_confirm'] : 'نعم، احذف!'; ?>",
+            cancelButtonText: "<?php echo isset($lang['swal_cancel']) ? $lang['swal_cancel'] : 'إلغاء'; ?>",
+            background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#fff',
+            color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1f2937'
         }).then((result) => {
             if (result.isConfirmed) {
                 window.location.href = 'users.php?delete_id=' + id;
