@@ -1,8 +1,7 @@
 <?php
 // ==========================================
-// تحديث الأمان والخصوصية | Update Security Info API
+// إعدادات السماحيات (CORS & Headers)
 // ==========================================
-
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST");
@@ -22,9 +21,6 @@ $email   = mysqli_real_escape_string($conn, $data->email);
 $phone   = isset($data->phone) ? mysqli_real_escape_string($conn, $data->phone) : '';
 $old_pass = $data->old_pass;
 
-// ==========================================
-// جلب المستخدم والتحقق من كلمة المرور | Fetch User & Verify Password
-// ==========================================
 $res  = mysqli_query($conn, "SELECT Password FROM User WHERE UserID=$user_id AND RoleID=3");
 $user = mysqli_fetch_assoc($res);
 
@@ -45,11 +41,19 @@ if (!$isPasswordCorrect) {
     exit();
 }
 
-// ==========================================
-// تحديث البيانات وكلمة المرور إذا طلُب ذلك | Update Data & Password if requested
-// ==========================================
 if (!empty($data->new_pass)) {
-    $newHash = password_hash($data->new_pass, PASSWORD_DEFAULT);
+    $new_pass_input = $data->new_pass;
+
+    // التحقق من قوة كلمة المرور الجديدة في السيرفر
+    if (strlen($new_pass_input) < 8 || !preg_match("/[A-Z]/", $new_pass_input) || !preg_match("/[a-z]/", $new_pass_input) || !preg_match("/[0-9]/", $new_pass_input)) {
+        echo json_encode([
+            "status" => "error",
+            "message" => "كلمة المرور الجديدة ضعيفة! يجب أن تتكون من 8 خانات على الأقل، وتحتوي على حرف كبير، حرف صغير، ورقم."
+        ]);
+        exit();
+    }
+
+    $newHash = password_hash($new_pass_input, PASSWORD_DEFAULT);
     $sql = "UPDATE User SET Email='$email', Phone='$phone', Password='$newHash' WHERE UserID=$user_id";
 } else {
     $sql = "UPDATE User SET Email='$email', Phone='$phone' WHERE UserID=$user_id";

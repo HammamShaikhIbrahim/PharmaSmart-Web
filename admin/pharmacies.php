@@ -1,6 +1,5 @@
 <?php
 
-
 // ==========================================
 // 1. الإعدادات الأساسية والحماية
 // ==========================================
@@ -239,8 +238,6 @@ include('../includes/sidebar.php');
 </style>
 
 
-
-
 <main class="flex-1 p-8 bg-blue-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
     <?php include('../includes/topbar.php'); ?>
 
@@ -254,10 +251,10 @@ include('../includes/sidebar.php');
         <!-- أدوات التحكم (الفلتر + البحث المباشر) -->
         <div class="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto justify-end">
 
-            <!--  البحث السريع (AJAX Live Search) -->
+            <!-- البحث السريع (AJAX Live Search) -->
             <div class="w-full md:w-80">
                 <div class="relative group">
-                    <!--  استدعاء دالة fetchTableData() عند كل حرف يكتب (oninput) للبحث المباشر الحي -->
+                    <!-- استدعاء دالة fetchTableData() عند كل حرف يكتب (oninput) للبحث المباشر الحي -->
                     <input type="text" id="searchInput" oninput="fetchTableData()" placeholder="<?php echo $lang['search_pharmacy']; ?>" value="<?php echo htmlspecialchars($search); ?>"
                         class="w-full p-3 rounded-2xl border border-gray-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-sm focus:ring-2 focus:ring-[#048AC1] outline-none transition-all text-sm">
                     <i data-lucide="search" class="top-3.5 text-gray-400 group-focus-within:text-[#048AC1] transition-colors <?php echo ($dir == 'rtl') ? 'absolute left-4' : 'absolute right-4'; ?> w-5 h-5"></i>
@@ -267,7 +264,7 @@ include('../includes/sidebar.php');
             <!-- الفلتر الزجاجي -->
             <div class="overflow-x-auto custom-scrollbar pb-2 -mb-2 w-full md:w-auto">
                 <div class="glass-radio-group shrink-0 mx-auto md:mx-0">
-                    <!--  يتم استدعاء دالة تحديث الجدول مع تغيير الحالة -->
+                    <!-- يتم استدعاء دالة تحديث الجدول مع تغيير الحالة -->
                     <input type="radio" name="status" id="filter-all" value="all" onchange="fetchTableData()" <?php echo ($status_filter == 'all') ? 'checked' : ''; ?> />
                     <label for="filter-all"><?php echo isset($lang['filter_all']) ? $lang['filter_all'] : 'الكل'; ?></label>
 
@@ -297,7 +294,7 @@ include('../includes/sidebar.php');
                         <th class="p-6 font-bold text-center whitespace-nowrap"><?php echo $lang['actions']; ?></th>
                     </tr>
                 </thead>
-                <!--  محتوى الجدول الذي سيتم تحديثه عبر الـ AJAX -->
+                <!-- محتوى الجدول الذي سيتم تحديثه عبر الـ AJAX -->
                 <tbody id="pharmaciesBody" class="divide-y divide-gray-200 dark:divide-slate-700/50 <?php echo ($dir == 'rtl') ? 'text-right' : 'text-left'; ?>">
                     <!-- سيتم ملؤه بواسطة الجافاسكربت فور تحميل الصفحة -->
                 </tbody>
@@ -308,7 +305,7 @@ include('../includes/sidebar.php');
 
 <script>
     // ==========================================
-    //  دالة الـ AJAX للبحث المباشر (Live Search) مع Debounce
+    // دالة الـ AJAX للبحث المباشر (Live Search) مع Debounce
     // ==========================================
     let fetchTimeoutId; // متغير لإيقاف الطلبات المتكررة أثناء الكتابة السريعة
 
@@ -358,18 +355,23 @@ include('../includes/sidebar.php');
     document.addEventListener('DOMContentLoaded', fetchTableData);
 
     // ==========================================
-    //  دوال أزرار الإجراءات (SweetAlert)
+    // دوال أزرار الإجراءات (SweetAlert)
     // ==========================================
     function confirmAction(id, type) {
-        let modalTitle = Lang.title;
-        let modalText = Lang.text;
-        let modalBtn = Lang.confirm;
-        let btnColor = '#ef4444';
+
+        // 💡 الإصلاح هنا: استدعاء المتغيرات من الـ PHP مباشرة لتجنب خطأ الـ ReferenceError
+        let modalTitle = "<?php echo isset($lang['swal_title']) ? $lang['swal_title'] : 'هل أنت متأكد؟'; ?>";
+        let modalText = "<?php echo isset($lang['swal_text']) ? $lang['swal_text'] : 'لن تتمكن من التراجع عن هذا الإجراء!'; ?>";
+        let modalBtn = "<?php echo isset($lang['swal_confirm']) ? $lang['swal_confirm'] : 'نعم، متأكد'; ?>";
+        let btnCancel = "<?php echo isset($lang['swal_cancel']) ? $lang['swal_cancel'] : 'إلغاء'; ?>";
+        let isDark = document.documentElement.classList.contains('dark');
+
+        let btnColor = '#ef4444'; // أحمر للحذف والرفض
 
         if (type === 'suspend') {
-            modalTitle = Lang.suspendTitle;
-            modalText = Lang.suspendText;
-            modalBtn = Lang.suspendConfirm;
+            modalTitle = "<?php echo isset($lang['suspend_title']) ? $lang['suspend_title'] : 'تعليق الحساب؟'; ?>";
+            modalText = "<?php echo isset($lang['suspend_text']) ? $lang['suspend_text'] : 'سيتم إيقاف الصيدلية مؤقتاً عن العمل.'; ?>";
+            modalBtn = "<?php echo isset($lang['suspend_confirm']) ? $lang['suspend_confirm'] : 'نعم، تعليق'; ?>";
             btnColor = '#f59e0b'; // لون برتقالي للتعليق
         }
 
@@ -381,11 +383,13 @@ include('../includes/sidebar.php');
             confirmButtonColor: btnColor,
             cancelButtonColor: '#6b7280',
             confirmButtonText: modalBtn,
-            cancelButtonText: Lang.cancel,
-            background: Lang.isDark ? '#1e293b' : '#fff',
-            color: Lang.isDark ? '#f8fafc' : '#1f2937'
+            cancelButtonText: btnCancel,
+            background: isDark ? '#1e293b' : '#fff',
+            color: isDark ? '#f8fafc' : '#1f2937'
         }).then((res) => {
-            if (res.isConfirmed) window.location.href = `pharmacies.php?action=${type}&id=${id}`;
+            if (res.isConfirmed) {
+                window.location.href = `pharmacies.php?action=${type}&id=${id}`;
+            }
         });
     }
 </script>

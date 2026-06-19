@@ -30,6 +30,9 @@ if ($current_lang == 'ar') {
     $lang['register_title'] = "تسجيل صيدلية جديدة - PharmaSmart";
     $lang['register_title_short'] = "تسجيل صيدلية جديدة";
     $lang['register_subtitle'] = "قم بملء بياناتك بدقة ليتم مراجعتها من قبل الإدارة";
+    $lang['register_subtitle_short'] = "يرجى ملء بياناتك بدقة ليتم مراجعتها من قبل الإدارة";
+    $lang['password_title'] = "كلمة مرور ضعيفة!";
+    $lang['password_error'] = "يجب أن تتكون كلمة المرور من 8 خانات على الأقل، وتحتوي على حرف كبير، حرف صغير، ورقم.";
 
     // خطوات التسجيل | Registration Steps
     $lang['personal_info_step'] = "بيانات شخصية";
@@ -347,6 +350,10 @@ if ($current_lang == 'ar') {
     $lang['register_title'] = "New Pharmacy Registration - PharmaSmart";
     $lang['register_title_short'] = "New Pharmacy Registration";
     $lang['register_subtitle'] = "Please fill in your details accurately for review by the administration.";
+    $lang['register_subtitle_short'] = "Please fill in your details accurately for review by the administration.";
+    $lang['password_title'] = "Weak Password!";
+    $lang['password_error'] = "Password must be at least 8 characters long and contain an uppercase letter, a lowercase letter, and a number.";
+
 
     // خطوات التسجيل | Registration Steps
     $lang['personal_info_step'] = "Personal Info";

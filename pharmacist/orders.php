@@ -22,17 +22,17 @@ $pharmacist_id = $_SESSION['user_id'];
 if (isset($_GET['action']) && isset($_GET['order_id'])) {
     $order_id = intval($_GET['order_id']);
     $action = mysqli_real_escape_string($conn, $_GET['action']);
-    
+
     // التقاط سبب الرفض إن وُجد
     $reason = isset($_GET['reason']) ? mysqli_real_escape_string($conn, $_GET['reason']) : '';
 
     $valid_actions = ['Accepted', 'Rejected', 'Delivered'];
 
     if (in_array($action, $valid_actions)) {
-        
+
         //  بدء معاملة لضمان تنفيذ الإرجاع مع التحديث معاً
         mysqli_begin_transaction($conn);
-        
+
         try {
             if ($action == 'Rejected') {
                 // تحديث الحالة لرفض مع كتابة السبب
@@ -45,13 +45,11 @@ if (isset($_GET['action']) && isset($_GET['order_id'])) {
                     $qty = $item['Quantity'];
                     mysqli_query($conn, "UPDATE PharmacyStock SET Stock = Stock + $qty WHERE StockID = $s_id");
                 }
-            } 
-            elseif ($action == 'Accepted') {
+            } elseif ($action == 'Accepted') {
                 // قبول الطلب واعتماد الوصفة
                 mysqli_query($conn, "UPDATE `Order` SET Status = 'Accepted' WHERE OrderID = $order_id");
                 mysqli_query($conn, "UPDATE Prescription SET IsVerified = 1 WHERE OrderID = $order_id");
-            } 
-            elseif ($action == 'Delivered') {
+            } elseif ($action == 'Delivered') {
                 // تحديث الحالة فقط (الخصم الفعلي تم عند الطلب)
                 mysqli_query($conn, "UPDATE `Order` SET Status = 'Delivered' WHERE OrderID = $order_id");
             }
@@ -59,7 +57,6 @@ if (isset($_GET['action']) && isset($_GET['order_id'])) {
             mysqli_commit($conn);
             header("Location: orders.php");
             exit();
-
         } catch (Exception $e) {
             mysqli_rollback($conn);
             die("خطأ في تحديث الحالة: " . $e->getMessage());
@@ -105,9 +102,11 @@ $orders_query = "
         o.OrderID, o.OrderDate, o.Status, o.TotalAmount, o.PaymentMethod, o.DeliveryAddress,
         o.DeliveryLatitude, o.DeliveryLongitude, o.RejectionReason,
         u.UserID, u.Fname, u.Lname, u.Phone,
+        p.MedicalHistory,
         pr.ImagePath as PrescriptionImage, pr.IsVerified
     FROM `Order` o
     JOIN User u ON o.PatientID = u.UserID
+    JOIN Patient p ON o.PatientID = p.PatientID
     JOIN OrderItems oi ON o.OrderID = oi.OrderID
     JOIN PharmacyStock ps ON oi.StockID = ps.StockID
     LEFT JOIN Prescription pr ON o.OrderID = pr.OrderID
@@ -168,6 +167,7 @@ if ($has_orders) {
             'patient' => $main_order['Fname'] . ' ' . $main_order['Lname'],
             'phone' => $main_order['Phone'],
             'address' => $main_order['DeliveryAddress'],
+            'medical_history' => $main_order['MedicalHistory'],
             'lat' => $main_order['DeliveryLatitude'],
             'lng' => $main_order['DeliveryLongitude'],
             'rejection_reason' => $main_order['RejectionReason'],
@@ -457,11 +457,25 @@ include('../includes/sidebar.php');
         color: #94a3b8;
     }
 
-    label[for="filter-All"]:hover { color: #0A7A48; }
-    label[for="filter-Pending"]:hover { color: #d97706; }
-    label[for="filter-Accepted"]:hover { color: #2563eb; }
-    label[for="filter-Delivered"]:hover { color: #059669; }
-    label[for="filter-Rejected"]:hover { color: #e11d48; }
+    label[for="filter-All"]:hover {
+        color: #0A7A48;
+    }
+
+    label[for="filter-Pending"]:hover {
+        color: #d97706;
+    }
+
+    label[for="filter-Accepted"]:hover {
+        color: #2563eb;
+    }
+
+    label[for="filter-Delivered"]:hover {
+        color: #059669;
+    }
+
+    label[for="filter-Rejected"]:hover {
+        color: #e11d48;
+    }
 
     .glass-radio-group input:checked+label {
         color: #ffffff !important;
@@ -533,20 +547,50 @@ include('../includes/sidebar.php');
         box-shadow: 0 4px 12px rgba(244, 63, 94, 0.35);
     }
 
-    html[dir="rtl"] #filter-Pending:checked~.glass-glider { transform: translateX(-100%); }
-    html[dir="rtl"] #filter-Accepted:checked~.glass-glider { transform: translateX(-200%); }
-    html[dir="rtl"] #filter-Delivered:checked~.glass-glider { transform: translateX(-300%); }
-    html[dir="rtl"] #filter-Rejected:checked~.glass-glider { transform: translateX(-400%); }
+    html[dir="rtl"] #filter-Pending:checked~.glass-glider {
+        transform: translateX(-100%);
+    }
 
-    .modal-scroll::-webkit-scrollbar { width: 6px; }
-    .modal-scroll::-webkit-scrollbar-thumb { background-color: rgba(10, 122, 72, 0.3); border-radius: 10px; }
-    .dark .modal-scroll::-webkit-scrollbar-thumb { background-color: rgba(74, 222, 128, 0.3); }
+    html[dir="rtl"] #filter-Accepted:checked~.glass-glider {
+        transform: translateX(-200%);
+    }
+
+    html[dir="rtl"] #filter-Delivered:checked~.glass-glider {
+        transform: translateX(-300%);
+    }
+
+    html[dir="rtl"] #filter-Rejected:checked~.glass-glider {
+        transform: translateX(-400%);
+    }
+
+    .modal-scroll::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .modal-scroll::-webkit-scrollbar-thumb {
+        background-color: rgba(10, 122, 72, 0.3);
+        border-radius: 10px;
+    }
+
+    .dark .modal-scroll::-webkit-scrollbar-thumb {
+        background-color: rgba(74, 222, 128, 0.3);
+    }
 
     @keyframes fadeInDown {
-        0% { opacity: 0; transform: translateY(-10px); }
-        100% { opacity: 1; transform: translateY(0); }
+        0% {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
-    .animate-fade-in-down { animation: fadeInDown 0.3s ease-out forwards; }
+
+    .animate-fade-in-down {
+        animation: fadeInDown 0.3s ease-out forwards;
+    }
 </style>
 
 <main class="flex flex-col flex-1 p-8 bg-blue-50 dark:bg-slate-900 h-full overflow-y-auto transition-colors duration-300 relative">
@@ -677,6 +721,7 @@ include('../includes/sidebar.php');
                         <i data-lucide="map-pin" class="w-4 h-4 text-[#0A7A48] dark:text-[#4ADE80]"></i>
                         <p id="modalPatientAddress" class="text-sm font-bold text-gray-600 dark:text-gray-300 leading-relaxed"></p>
                     </div>
+                    <div id="modalMedicalHistoryContainer"></div>
                     <div id="mapWrapper" class="hidden mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-slate-600 h-32 w-full relative z-0 shadow-inner">
                         <div id="deliveryMap" class="absolute inset-0"></div>
                     </div>
@@ -738,7 +783,7 @@ include('../includes/sidebar.php');
     const txtAccept = <?php echo json_encode($lang['accept_prepare'] ?? 'قبول وتجهيز', JSON_UNESCAPED_UNICODE); ?>;
     const txtDelivered = <?php echo json_encode($lang['delivered_successfully'] ?? 'تم تسليم الطلب بنجاح', JSON_UNESCAPED_UNICODE); ?>;
     const txtActionTaken = <?php echo json_encode($lang['action_taken'] ?? 'تم اتخاذ إجراء مسبقاً', JSON_UNESCAPED_UNICODE); ?>;
-    
+
     const txtSecurityAlert = <?php echo json_encode($lang['security_alert'] ?? 'تنبيه أمني', JSON_UNESCAPED_UNICODE); ?>;
     const txtRxReviewReq = <?php echo json_encode($lang['rx_review_required_alert'] ?? 'يجب التحقق من الوصفة', JSON_UNESCAPED_UNICODE); ?>;
     const txtRejectOrderTitle = <?php echo json_encode($lang['reject_order_title'] ?? 'رفض الطلب', JSON_UNESCAPED_UNICODE); ?>;
@@ -843,20 +888,17 @@ include('../includes/sidebar.php');
 
     function openOrderModalData(order) {
         currentOrderData = order;
-
         document.getElementById('modalOrderId').innerText = `#${order.id}`;
         document.getElementById('modalOrderDate').innerText = order.date;
         document.getElementById('modalPatientName').innerText = order.patient;
         document.getElementById('modalPatientPhone').innerText = order.phone || txtNoPhone;
         document.getElementById('modalPatientAddress').innerText = order.address || txtPickup;
         document.getElementById('modalTotalAmount').innerText = parseFloat(order.total).toFixed(2) + ' ₪';
-
         const itemsList = document.getElementById('modalItemsList');
         itemsList.innerHTML = '';
         order.items.forEach(item => {
             const rxBadge = item.IsControlled == 1 ? '<span class="ml-2 bg-amber-100 text-amber-700 text-[9px] px-1.5 py-0.5 rounded font-black border border-amber-200">Rx</span>' : '';
             const itemTotal = parseFloat(item.Quantity * item.SoldPrice).toFixed(2);
-
             itemsList.innerHTML += `
                 <div class="flex justify-between items-center p-2.5 bg-gray-50 dark:bg-slate-700/30 rounded-xl border border-gray-100 dark:border-slate-700">
                     <div>
@@ -867,13 +909,26 @@ include('../includes/sidebar.php');
                 </div>
             `;
         });
-
+        let medicalHistoryHTML = '';
+        if (order.medical_history && order.medical_history.trim() !== '') {
+            medicalHistoryHTML = `
+            <div class="mt-3 pt-3 border-t border-red-100 dark:border-red-900/30">
+                <div class="flex items-start gap-2">
+                    <i data-lucide="activity" class="w-4 h-4 text-red-500 mt-0.5"></i>
+                    <div>
+                        <span class="text-xs font-bold text-red-500 block mb-1">السجل المرضي للمريض:</span>
+                        <p class="text-sm font-bold text-gray-700 dark:text-gray-300 leading-relaxed">${order.medical_history}</p>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+        document.getElementById('modalMedicalHistoryContainer').innerHTML = medicalHistoryHTML;
         const modalWrapper = document.getElementById('modalContentWrapper');
         const unifiedPrescriptionContainer = document.getElementById('unifiedPrescriptionContainer');
         const rxHeader = document.getElementById('rxHeader');
         const verifyCheckbox = document.getElementById('verifyPrescriptionCheck');
         const rxCheckboxContainer = document.getElementById('rxCheckboxContainer');
-
         const modalHeader = document.getElementById('modalHeader');
         const statusStamp = document.getElementById('statusStamp');
         const modalFooter = document.getElementById('modalFooter');
@@ -1004,7 +1059,7 @@ include('../includes/sidebar.php');
             L.tileLayer(tileUrl, {
                 maxZoom: 19
             }).addTo(deliveryMapInstance);
-            
+
             L.marker([order.lat, order.lng], {
                 icon: customMapIcon
             }).addTo(deliveryMapInstance);
