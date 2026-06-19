@@ -381,7 +381,7 @@ if (isset($_POST['register'])) {
 
         var customIcon = L.divIcon({
             className: 'custom-leaflet-marker',
-            html: `<div class="flex items-center justify-center text-emerald-500 bg-white rounded-full p-1 shadow-lg"><i data-lucide="map-pin" class="w-6 h-6"></i></div>`,
+            html: `<div class="flex items-center justify-center text-emerald-500"><i data-lucide="map-pin" class="w-6 h-6"></i></div>`,
             iconSize: [36, 36],
             iconAnchor: [18, 36],
         });
