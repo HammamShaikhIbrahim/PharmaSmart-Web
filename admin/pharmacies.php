@@ -358,14 +358,14 @@ include('../includes/sidebar.php');
     // دوال أزرار الإجراءات (SweetAlert)
     // ==========================================
     function confirmAction(id, type) {
-        
+
         // 💡 الإصلاح هنا: استدعاء المتغيرات من الـ PHP مباشرة لتجنب خطأ الـ ReferenceError
         let modalTitle = "<?php echo isset($lang['swal_title']) ? $lang['swal_title'] : 'هل أنت متأكد؟'; ?>";
         let modalText = "<?php echo isset($lang['swal_text']) ? $lang['swal_text'] : 'لن تتمكن من التراجع عن هذا الإجراء!'; ?>";
         let modalBtn = "<?php echo isset($lang['swal_confirm']) ? $lang['swal_confirm'] : 'نعم، متأكد'; ?>";
         let btnCancel = "<?php echo isset($lang['swal_cancel']) ? $lang['swal_cancel'] : 'إلغاء'; ?>";
         let isDark = document.documentElement.classList.contains('dark');
-        
+
         let btnColor = '#ef4444'; // أحمر للحذف والرفض
 
         if (type === 'suspend') {

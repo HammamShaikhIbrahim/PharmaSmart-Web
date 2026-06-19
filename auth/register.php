@@ -35,19 +35,21 @@ if (isset($_POST['register'])) {
     if (mysqli_num_rows($checkEmail) > 0) {
         $error = $lang['email_exists_error'];
     } elseif (mysqli_num_rows($checkLicense) > 0) {
-        //  تم استبدال الشرط المضمن بمتغير اللغة
         $error = $lang['license_exists_error'];
     } elseif ($lat == 0 || $lng == 0) {
         $error = $lang['location_error'];
+    } elseif (strlen($password) < 8 || !preg_match("/[A-Z]/", $password) || !preg_match("/[a-z]/", $password) || !preg_match("/[0-9]/", $password)) {
+        // التحقق من قوة الباسوورد في السيرفر كطبقة حماية ثانية
+        $error = "كلمة المرور ضعيفة! يجب أن تتكون من 8 خانات على الأقل، وتحتوي على حرف كبير، حرف صغير، ورقم.";
     } else {
 
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-        // ` بدء الـ Transaction (المعاملة) لمنع حفظ بيانات يتيمة
+        // بدء المعاملة الأمنية لضمان سلامة إدخال البيانات المترابطة
         mysqli_begin_transaction($conn);
 
         try {
-            // إدخال بيانات المستخدم أولاً
+            // إدخال بيانات المستخدم أولاً (المالك)
             $sqlUser = "INSERT INTO User (Fname, Lname, Email, Password, Phone, RoleID)
                         VALUES ('$fname', '$lname', '$email', '$hashed_password', '$phone', 2)";
 
@@ -60,20 +62,18 @@ if (isset($_POST['register'])) {
 
             mysqli_query($conn, $sqlPhar);
 
-            // ` إذا وصلنا هنا بنجاح دون أخطاء، نقوم بتأكيد الحفظ (Commit)
+            // تأكيد العملية بنجاح
             mysqli_commit($conn);
             $message = $lang['registration_success'];
         } catch (mysqli_sql_exception $e) {
-            //  إذا حدث أي خطأ أثناء الإدخالين، نتراجع عن كل شيء (Rollback) ليتم مسح المستخدم الذي أُدخل!
+            // التراجع عن الإدخالات السابقة في حال حدوث فشل في أي جزء من الاستعلامات
             mysqli_rollback($conn);
 
             if (strpos($e->getMessage(), 'LicenseNumber') !== false || strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                //  تم استبدال الشرط المضمن بمتغير اللغة
                 $error = $lang['license_exists_error'];
             } elseif (strpos($e->getMessage(), 'Email') !== false) {
                 $error = $lang['email_exists_error'];
             } else {
-                //  تم استبدال النص الثابت بمتغير اللغة
                 $error = $lang['db_error'] . " " . $e->getMessage();
             }
         }
@@ -86,7 +86,6 @@ if (isset($_POST['register'])) {
 
 <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $lang['register_title']; ?></title>
@@ -195,47 +194,35 @@ if (isset($_POST['register'])) {
 
 <body class="bg-gradient-to-br from-teal-50 to-emerald-200 dark:from-slate-900 dark:to-teal-950 relative transition-colors duration-500">
 
-    <!-- الخلفية والأشكال الهندسية (مطابقة لصفحة اللوجن) -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
-
-        <!-- شكل الكبسولة -->
         <div class="absolute top-10 left-20 w-32 h-64 rounded-full transform rotate-[35deg]
                     bg-gradient-to-b from-emerald-300 to-teal-500 dark:from-emerald-600 dark:to-teal-800
                     shadow-[inset_15px_15px_30px_rgba(255,255,255,0.7),inset_-10px_-10px_30px_rgba(0,0,0,0.2),10px_20px_40px_rgba(20,184,166,0.3)]">
         </div>
 
-        <!-- شكل القرص-->
         <div class="absolute top-1/4 right-20 w-48 h-48 rounded-full transform -rotate-[15deg]
                     bg-gradient-to-tr from-green-200 to-emerald-400 dark:from-green-700 dark:to-emerald-600
                     shadow-[inset_-10px_-10px_30px_rgba(0,0,0,0.15),inset_15px_15px_30px_rgba(255,255,255,0.8),0_20px_40px_rgba(16,185,129,0.2)]">
             <div class="absolute top-1/2 left-4 right-4 h-1 bg-white/40 dark:bg-black/10 rounded-full transform -translate-y-1/2 shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]"></div>
         </div>
 
-        <!-- شكل الزائد -->
         <div class="absolute bottom-20 left-1/4 w-32 h-32 transform rotate-[15deg] opacity-80">
             <div class="absolute inset-x-10 inset-y-0 rounded-2xl bg-gradient-to-br from-teal-300 to-cyan-500 dark:from-teal-600 dark:to-cyan-800 shadow-[inset_5px_5px_15px_rgba(255,255,255,0.6),inset_-5px_-5px_15px_rgba(0,0,0,0.2)]"></div>
             <div class="absolute inset-y-10 inset-x-0 rounded-2xl bg-gradient-to-br from-teal-300 to-cyan-500 dark:from-teal-600 dark:to-cyan-800 shadow-[inset_5px_5px_15px_rgba(255,255,255,0.6),inset_-5px_-5px_15px_rgba(0,0,0,0.2)]"></div>
         </div>
 
-        <!-- كبسولة صغيرة -->
         <div class="absolute bottom-1/3 right-1/3 w-20 h-40 rounded-full transform -rotate-[40deg] blur-md
                     bg-gradient-to-r from-emerald-400 to-green-300 dark:from-emerald-700 dark:to-green-800
                     shadow-[inset_5px_5px_15px_rgba(255,255,255,0.5)]">
         </div>
-
     </div>
 
-    <!-- ==========================================
-            ازرار التحكم في الثيم واللغة
-    ========================================== -->
     <div class="absolute top-6 right-6 flex items-center gap-3 z-50">
-        <!-- زر الوضع الليلي/النهاري -->
         <button id="theme-toggle" type="button" class="glass-panel p-3 rounded-2xl text-gray-700 dark:text-white transition-all duration-300 hover:bg-white/40 dark:hover:bg-slate-800/70 hover:shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:-translate-y-1 focus:outline-none flex items-center justify-center group">
             <i id="theme-toggle-light-icon" data-lucide="sun" class="hidden w-5 h-5 text-amber-400 transition-transform duration-500 group-hover:rotate-90"></i>
             <i id="theme-toggle-dark-icon" data-lucide="moon" class="hidden w-5 h-5 text-amber-400 transition-transform duration-500 group-hover:-rotate-12"></i>
         </button>
 
-        <!-- زر تغيير اللغة -->
         <a href="?lang=<?php echo $lang['switch_lang_code']; ?>"
             class="glass-panel text-gray-800 dark:text-white font-bold px-5 py-3 rounded-2xl transition-all duration-300 hover:bg-white/40 dark:hover:bg-slate-800/70 hover:shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:-translate-y-1 flex items-center gap-2 text-sm group">
             <i data-lucide="globe" class="w-4 h-4 text-emerald-600 dark:text-emerald-400 transition-transform duration-500 group-hover:rotate-180"></i>
@@ -243,9 +230,7 @@ if (isset($_POST['register'])) {
         </a>
     </div>
 
-    <!-- المحتوى الرئيسي -->
     <main id="mainScrollArea" class="h-full w-full overflow-y-auto flex flex-col items-center p-4 relative z-10">
-
         <div class="w-full max-w-4xl mt-12 mb-20 relative">
             <div class="glass-panel p-8 md:p-12 rounded-[2.5rem] w-full transition-all duration-300 relative">
 
@@ -306,7 +291,7 @@ if (isset($_POST['register'])) {
                             <label class="flex items-center justify-between w-full p-3 rounded-xl bg-white/40 dark:bg-slate-900/40 border border-gray-200 dark:border-slate-600 transition cursor-pointer group hover:bg-white/60">
                                 <span id="logo-file-name" class="text-gray-600 dark:text-gray-400 text-sm font-bold truncate max-w-[70%]"><?php echo $lang['choose_logo']; ?></span>
                                 <span class="px-4 py-1.5 text-xs font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-400/30 transition duration-300 group-hover:bg-emerald-500/20 group-hover:shadow-[0_0_10px_rgba(16,185,129,0.4)]">
-                                    <?php echo $lang['upload']; ?> <i data-lucide="upload" class="inline w-3 h-3 rtl:mr-1 ltr:ml-1"></i>
+                                    <?php echo $lang['upload']; ?> <i data-lucide="upload" class="inline w-3 h-3 rlt:mr-1 ltr:ml-1"></i>
                                 </span>
                                 <input type="file" name="logo" accept="image/*" class="hidden" onchange="updateLogoName(this)">
                             </label>
@@ -326,7 +311,6 @@ if (isset($_POST['register'])) {
                         </div>
                     </div>
 
-                    <!-- تم تعديل الزر ليتوافق مع تصميم اللوجن -->
                     <button type="submit" name="register" class="w-full bg-emerald-600 text-white py-4 rounded-2xl hover:bg-emerald-700 transition-all font-black text-lg mt-8 shadow-[0_10px_20px_rgba(16,185,129,0.3)] active:scale-[0.98] border border-emerald-500/50 flex justify-center items-center gap-2">
                         <?php echo $lang['register_button']; ?>
                         <i data-lucide="<?php echo ($dir == 'rtl') ? 'arrow-left' : 'arrow-right'; ?>" class="w-5 h-5"></i>
@@ -397,7 +381,7 @@ if (isset($_POST['register'])) {
 
         var customIcon = L.divIcon({
             className: 'custom-leaflet-marker',
-            html: `<div class="flex items-center justify-center text-emerald-500 bg-white rounded-full p-1 shadow-lg border-2 border-emerald-500"><i data-lucide="map-pin" class="w-6 h-6"></i></div>`,
+            html: `<div class="flex items-center justify-center text-emerald-500 bg-white rounded-full p-1 shadow-lg"><i data-lucide="map-pin" class="w-6 h-6"></i></div>`,
             iconSize: [36, 36],
             iconAnchor: [18, 36],
         });
@@ -433,6 +417,24 @@ if (isset($_POST['register'])) {
         function validateForm(e) {
             let lat = document.getElementById('latInput').value;
             let lng = document.getElementById('lngInput').value;
+            let password = document.getElementsByName('password')[0].value;
+
+            // التحقق من قوة كلمة المرور في المتصفح باستخدام التعبيرات القياسية
+            let passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\w\W]{8,}$/;
+
+            if (!passwordPattern.test(password)) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: '<?php echo $lang['password_title']; ?>',
+                    text: '<?php echo $lang['password_error']; ?>',
+                    confirmButtonColor: '#10b981',
+                    background: document.documentElement.classList.contains('dark') ? '#1e293b' : '#fff',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1f2937'
+                });
+                return false;
+            }
+
             if (!lat || !lng) {
                 e.preventDefault();
                 Swal.fire({
