@@ -40,7 +40,7 @@ if (isset($_POST['register'])) {
         $error = $lang['location_error'];
     } elseif (strlen($password) < 8 || !preg_match("/[A-Z]/", $password) || !preg_match("/[a-z]/", $password) || !preg_match("/[0-9]/", $password)) {
         // التحقق من قوة الباسوورد في السيرفر كطبقة حماية ثانية
-        $error = "كلمة المرور ضعيفة! يجب أن تتكون من 8 خانات على الأقل، وتحتوي على حرف كبير، حرف صغير، ورقم.";
+        $error = $lang['password_error'];
     } else {
 
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
